@@ -1,0 +1,109 @@
+{
+  "projectType": "saas",
+  "projectName": "Alita Robot",
+  "projectDescription": "A powerful, modern Telegram group management bot built with Go and Gotgbot, providing comprehensive moderation, content filtering, and group customization tools.",
+  "theme": "palm",
+  "primaryColor": "#040404",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/webhook",
+              "deployment/platforms"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/moderation",
+              "features/content-management",
+              "features/greetings",
+              "features/anti-spam"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Command Reference",
+        "groups": [
+          {
+            "group": "Admin Commands",
+            "pages": [
+              "commands/admin",
+              "commands/moderation",
+              "commands/locks"
+            ]
+          },
+          {
+            "group": "User Commands",
+            "pages": [
+              "commands/user",
+              "commands/settings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/setup",
+              "development/architecture",
+              "development/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "User management (ban, mute, kick, warn) with customizable actions",
+    "Anti-spam with configurable flood control and blacklist filtering",
+    "Welcome/goodbye messages with variable substitution",
+    "Keyword-triggered filters with regex support and Aho-Corasick matching",
+    "Notes system for saving and retrieving formatted messages",
+    "Message locks (links, forwards, media types)",
+    "CAPTCHA verification for new members",
+    "Multi-language support (en, es, fr, hi, ru, pt, id)",
+    "Both polling and webhook deployment modes",
+    "Redis caching with stampede protection and PostgreSQL persistence",
+    "OpenTelemetry distributed tracing",
+    "One-click deploy to Render, Railway, and Heroku"
+  ],
+  "publicApiSurface": [
+    "/start — Start the bot",
+    "/help — Get module help",
+    "/ban, /unban — Ban/unban users",
+    "/mute, /unmute — Mute/unmute users",
+    "/kick — Kick a user",
+    "/warn, /unwarn — Warn/remove warnings",
+    "/promote, /demote — Manage admin privileges",
+    "/filter, /filters, /stop — Keyword filters",
+    "/save, /get, /notes, /clear — Notes system",
+    "/setwelcome, /setgoodbye — Greetings configuration",
+    "/blacklist — Word/sticker blacklisting",
+    "/lock, /unlock — Message type locks",
+    "/setflood — Anti-flood configuration",
+    "/rules — Group rules management",
+    "/captcha — CAPTCHA verification settings",
+    "/backup — Group data backup/restore",
+    "/connect — Connect to groups from PM"
+  ]
+}

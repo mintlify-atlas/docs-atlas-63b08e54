@@ -1,0 +1,369 @@
+---
+title: "Moderation commands reference for Alita Robot"
+description: "Full reference for ban, kick, mute, warn, and purge commands in Alita Robot — covering timed actions, silent variants, and warning limit configuration."
+---
+
+Alita Robot provides a complete moderation toolkit covering permanent and timed bans, mutes, kicks, a warning system with configurable limits and enforcement actions, and message purging. All moderation commands require the issuing user to be an admin with the "Restrict members" or "Delete messages" right (as noted per command), and the bot must hold the same permission.
+
+## Bans
+
+<AccordionGroup>
+  <Accordion title="/ban [user] [reason]">
+    **Permission required:** Admin with "Ban users" right
+
+    Permanently bans a user from the group. An inline **Unban** button is shown in the bot's reply so admins can quickly reverse the action. An optional reason can be provided after the username.
+
+    For anonymous channel accounts, reply to one of their messages instead of providing a username.
+
+    ```bash
+    /ban @username
+    /ban @username Repeated spam
+    ```
+  </Accordion>
+
+  <Accordion title="/tban [user] [duration] [reason]">
+    **Permission required:** Admin with "Ban users" right
+
+    Temporarily bans a user for the specified duration. After the time expires Telegram automatically lifts the ban.
+
+    ```bash
+    /tban @username 30m
+    /tban @username 7d Flooding the chat
+    ```
+
+    See the [time format reference](#time-format-reference) below for supported duration units.
+  </Accordion>
+
+  <Accordion title="/unban [user]">
+    **Permission required:** Admin with "Ban users" right
+
+    Removes an existing ban, allowing the user to rejoin the group.
+
+    ```bash
+    /unban @username
+    ```
+  </Accordion>
+
+  <Accordion title="/sban [user]">
+    **Permission required:** Admin with "Ban users" right
+
+    Silently bans a user. The bot deletes the command message and does not post any confirmation, keeping the action discreet.
+
+    ```bash
+    /sban @username
+    ```
+  </Accordion>
+
+  <Accordion title="/dban [user] [reason]">
+    **Permission required:** Admin with "Ban users" + "Delete messages" right
+
+    Bans the user **and** deletes the message you are replying to in a single action. Must be used as a reply.
+
+    ```bash
+    /dban @username Posting illegal content
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Kicks
+
+<AccordionGroup>
+  <Accordion title="/kick [user] [reason]">
+    **Permission required:** Admin with "Ban users" right
+
+    Removes a user from the group. Unlike a ban, the user can rejoin via the invite link immediately afterward.
+
+    ```bash
+    /kick @username
+    /kick @username Please read the rules first
+    ```
+  </Accordion>
+
+  <Accordion title="/dkick [user] [reason]">
+    **Permission required:** Admin with "Ban users" + "Delete messages" right
+
+    Kicks the user **and** deletes the message you are replying to. Must be used as a reply.
+
+    ```bash
+    /dkick @username
+    ```
+  </Accordion>
+
+  <Accordion title="/kickme">
+    Allows a non-admin member to remove themselves from the group. Admins cannot use this command on themselves.
+
+    ```bash
+    /kickme
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Mutes
+
+<AccordionGroup>
+  <Accordion title="/mute [user] [reason]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Permanently mutes a user, revoking their ability to send messages. An inline **Unmute** button appears in the bot's reply.
+
+    ```bash
+    /mute @username
+    /mute @username Spamming stickers
+    ```
+  </Accordion>
+
+  <Accordion title="/tmute [user] [duration] [reason]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Temporarily mutes a user for the given duration. Permissions are restored automatically when the timer expires.
+
+    ```bash
+    /tmute @username 1h
+    /tmute @username 2d Excessive off-topic posts
+    ```
+
+    See the [time format reference](#time-format-reference) below.
+  </Accordion>
+
+  <Accordion title="/unmute [user]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Restores the default chat permissions for a muted user.
+
+    ```bash
+    /unmute @username
+    ```
+  </Accordion>
+
+  <Accordion title="/smute [user]">
+    **Permission required:** Admin with "Restrict members" + "Delete messages" right
+
+    Silently mutes a user and deletes the command message without sending a confirmation.
+
+    ```bash
+    /smute @username
+    ```
+  </Accordion>
+
+  <Accordion title="/dmute [user] [reason]">
+    **Permission required:** Admin with "Restrict members" + "Delete messages" right
+
+    Mutes the user **and** deletes the message you are replying to. Must be used as a reply.
+
+    ```bash
+    /dmute @username
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Warnings
+
+<AccordionGroup>
+  <Accordion title="/warn [user] [reason]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Issues a warning to a user. When the user's warning count reaches the configured limit, the configured enforcement action (kick, ban, or mute) is applied automatically. An inline **Remove warn** button lets admins undo the latest warning, and a **Rules** button is shown if group rules are set.
+
+    ```bash
+    /warn @username
+    /warn @username Posting off-topic content
+    ```
+  </Accordion>
+
+  <Accordion title="/swarn [user] [reason]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Warns the user silently by deleting the command message.
+
+    ```bash
+    /swarn @username
+    ```
+  </Accordion>
+
+  <Accordion title="/dwarn [user] [reason]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Warns the user **and** deletes the message you are replying to.
+
+    ```bash
+    /dwarn @username Inappropriate content
+    ```
+  </Accordion>
+
+  <Accordion title="/warns [user]">
+    Shows the current warning count and reasons for a specific user. If no user is specified, shows your own warning count.
+
+    Can be disabled by admins with `/disable warns`.
+
+    ```bash
+    /warns
+    /warns @username
+    ```
+  </Accordion>
+
+  <Accordion title="/unwarn [user] · /rmwarn [user]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Removes the most recent warning from the specified user.
+
+    ```bash
+    /unwarn @username
+    /rmwarn @username
+    ```
+  </Accordion>
+
+  <Accordion title="/resetwarns [user] · /resetwarn [user]">
+    **Permission required:** Admin
+
+    Clears **all** warnings for the specified user.
+
+    ```bash
+    /resetwarns @username
+    ```
+  </Accordion>
+
+  <Accordion title="/resetallwarns">
+    **Permission required:** Group owner
+
+    Clears all warnings for all users in the group. A confirmation dialog is shown before proceeding.
+
+    ```bash
+    /resetallwarns
+    ```
+  </Accordion>
+
+  <Accordion title="/setwarnlimit [number]">
+    **Permission required:** Admin
+
+    Sets how many warnings a user can accumulate before the enforcement action triggers. Accepted range is 1–100. Default is 3.
+
+    ```bash
+    /setwarnlimit 5
+    ```
+  </Accordion>
+
+  <Accordion title="/setwarnmode [ban|kick|mute]">
+    **Permission required:** Admin
+
+    Sets the action taken when a user reaches the warning limit.
+
+    | Mode | Effect |
+    |---|---|
+    | `ban` | Permanently ban the user |
+    | `kick` | Kick the user (can rejoin) |
+    | `mute` | Permanently mute the user |
+
+    ```bash
+    /setwarnmode ban
+    /setwarnmode kick
+    /setwarnmode mute
+    ```
+  </Accordion>
+
+  <Accordion title="/warnings">
+    **Permission required:** Admin
+
+    Displays the current warning limit and enforcement mode configured for the group.
+
+    ```bash
+    /warnings
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Message deletion
+
+<AccordionGroup>
+  <Accordion title="/purge [reason]">
+    **Permission required:** Admin with "Delete messages" right
+
+    Deletes every message from the replied-to message up to and including the `/purge` command itself. A brief confirmation is posted and auto-deleted after 3 seconds. An optional reason can be included for context.
+
+    Maximum range is 1,000 messages per purge.
+
+    ```bash
+    /purge
+    /purge Clearing spam wave
+    ```
+
+    <Note>
+      You must reply to the oldest message you want deleted. All messages between that message and your command will be removed.
+    </Note>
+  </Accordion>
+
+  <Accordion title="/purgefrom">
+    **Permission required:** Admin with "Delete messages" right
+
+    Marks a message as the starting point for a range deletion. Reply to the message you want to start from, then use `/purgeto` to complete the range.
+
+    ```bash
+    /purgefrom
+    ```
+  </Accordion>
+
+  <Accordion title="/purgeto [reason]">
+    **Permission required:** Admin with "Delete messages" right
+
+    Completes a range deletion started with `/purgefrom`. Reply to the last message you want deleted.
+
+    ```bash
+    /purgeto
+    ```
+  </Accordion>
+
+  <Accordion title="/del">
+    **Permission required:** Admin with "Delete messages" right
+
+    Deletes a single message. Reply to the message you want removed. The command message itself is also deleted.
+
+    ```bash
+    /del
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Restrict / unrestrict menus
+
+<AccordionGroup>
+  <Accordion title="/restrict [user]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Shows an inline keyboard with options to **Ban**, **Kick**, or **Mute** the specified user. Useful for quick actions without typing a full command.
+
+    ```bash
+    /restrict @username
+    ```
+  </Accordion>
+
+  <Accordion title="/unrestrict [user]">
+    **Permission required:** Admin with "Restrict members" right
+
+    Shows an inline keyboard with options to **Unban** or **Unmute** the specified user.
+
+    ```bash
+    /unrestrict @username
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Time format reference
+
+Timed commands (`/tban`, `/tmute`) accept durations using the following unit suffixes:
+
+| Suffix | Unit | Example |
+|---|---|---|
+| `m` | Minutes | `30m` — 30 minutes |
+| `h` | Hours | `2h` — 2 hours |
+| `d` | Days | `7d` — 7 days |
+| `w` | Weeks | `2w` — 2 weeks |
+
+Combine the number directly with the suffix and place it immediately after the username:
+
+```bash
+/tban @username 1h30m Cooldown period
+/tmute @username 3d Repeated rule violations
+```
+
+<Tip>
+  Telegram enforces a minimum ban duration of 31 seconds and a maximum of 366 days. Durations outside this range are treated as permanent by Telegram's API.
+</Tip>

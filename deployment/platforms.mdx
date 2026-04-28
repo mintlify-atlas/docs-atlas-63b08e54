@@ -1,0 +1,187 @@
+---
+title: "One-click deploy Alita Robot to Render, Railway, Heroku"
+description: "Deploy Alita Robot to Render, Railway, or Heroku with a single click. Each platform auto-provisions PostgreSQL and Redis from a pre-configured template."
+---
+
+Alita Robot ships with deployment templates for three cloud platforms. Each template auto-provisions a PostgreSQL database and Redis instance, wires up the connection strings, and runs database migrations on first boot. After clicking deploy you only need to supply three values — your bot token, your Telegram user ID, and your log channel ID — and the bot will be live within minutes.
+
+<Note>
+  After any one-click deploy completes, open your platform's dashboard and set `BOT_TOKEN`, `OWNER_ID`, and `MESSAGE_DUMP`. The bot will not start correctly without these three variables.
+</Note>
+
+<Tabs>
+  <Tab title="Render">
+    Render is the recommended free-tier option. The template provisions a web service running the bot, a free PostgreSQL database (`alita-db`), and a free Redis instance (`alita-redis`). Render auto-injects connection strings so you do not need to set `DATABASE_URL` or `REDIS_ADDRESS` manually.
+
+    **[Deploy to Render](https://render.com/deploy?repo=https://github.com/divkix/Alita_Robot)**
+
+    ### What is auto-provisioned
+
+    | Resource | Plan | Notes |
+    |---|---|---|
+    | Web service | Starter (free) | Runs the bot container |
+    | PostgreSQL | Free | 1 GB storage, auto-connected |
+    | Redis | Free | Persistent, `noeviction` policy |
+
+    ### Environment variables set automatically
+
+    | Variable | Source |
+    |---|---|
+    | `DATABASE_URL` | Connection string from `alita-db` |
+    | `REDIS_ADDRESS` | Host and port from `alita-redis` |
+    | `AUTO_MIGRATE` | `true` |
+    | `HTTP_PORT` | `10000` (Render's required port) |
+
+    ### Variables you must set after deploy
+
+    | Variable | Description |
+    |---|---|
+    | `BOT_TOKEN` | Your bot token from [@BotFather](https://t.me/BotFather) |
+    | `OWNER_ID` | Your Telegram user ID |
+    | `MESSAGE_DUMP` | Log channel ID (must start with `-100`) |
+
+    ### Cost
+
+    The free tier includes 750 instance hours per month. Databases and Redis are free with storage and memory limits. For always-on production use, upgrade to a paid instance to avoid spin-down.
+
+    ### Render-specific notes
+
+    - The health check path is `/health` on port `10000`.
+    - Auto-deploy is disabled in `render.yaml` — push to your fork to trigger a deploy manually.
+    - The service uses the `docker/alpine` Dockerfile via `dockerfilePath`.
+  </Tab>
+
+  <Tab title="Railway">
+    Railway deploys the bot using Nixpacks (a zero-config buildpack), and the template includes pre-configured PostgreSQL and Redis plugins. Connection strings are injected automatically.
+
+    **[Deploy on Railway](https://railway.com/deploy/2vHOTV?referralCode=Divkix)**
+
+    ### What is auto-provisioned
+
+    | Resource | Notes |
+    |---|---|
+    | Bot service | Built with Nixpacks from source |
+    | PostgreSQL | Plugin, auto-connected via `DATABASE_URL` |
+    | Redis | Plugin, auto-connected via `REDIS_URL` |
+
+    ### Build configuration
+
+    Railway uses `nixpacks.toml` to build the bot:
+
+    ```toml
+    providers = ["go"]
+
+    [phases.setup]
+    aptPkgs = ["postgresql-client", "ca-certificates"]
+
+    [phases.build]
+    cmds = ["go mod download", "go build -o alita_robot"]
+
+    [start]
+    cmd = "./alita_robot"
+    ```
+
+    ### Variables you must set after deploy
+
+    | Variable | Description |
+    |---|---|
+    | `BOT_TOKEN` | Your bot token from [@BotFather](https://t.me/BotFather) |
+    | `OWNER_ID` | Your Telegram user ID |
+    | `MESSAGE_DUMP` | Log channel ID (must start with `-100`) |
+    | `AUTO_MIGRATE` | Set to `true` to apply migrations on startup |
+
+    ### Deploy configuration
+
+    The `railway.toml` configures health checks and restart policy:
+
+    ```toml
+    [build]
+    builder = "RAILPACK"
+
+    [deploy]
+    healthcheckPath = "/health"
+    healthcheckTimeout = 100
+    restartPolicyType = "ON_FAILURE"
+    restartPolicyMaxRetries = 3
+    ```
+
+    ### Cost
+
+    Railway's Hobby plan ($5/month) is sufficient for running the bot. The template includes PostgreSQL and Redis at no additional cost within the plan's resource limits.
+
+    ### Railway-specific notes
+
+    - Redis connection is provided as `REDIS_URL` (parsed automatically by the bot).
+    - The bot restarts automatically on failure with up to 3 retries.
+    - Source builds mean you can fork the repo and deploy your own modifications directly.
+  </Tab>
+
+  <Tab title="Heroku">
+    Heroku uses the `app.json` template to provision the bot dyno, a PostgreSQL Essential add-on, and a Redis Mini add-on. All add-ons are auto-configured and their connection strings are injected as environment variables.
+
+    **[Deploy to Heroku](https://heroku.com/deploy?template=https://github.com/divkix/Alita_Robot)**
+
+    ### What is auto-provisioned
+
+    | Resource | Plan | Monthly cost |
+    |---|---|---|
+    | Web dyno | Basic | ~$5/mo |
+    | PostgreSQL | Essential-0 | ~$5/mo |
+    | Redis | Mini | ~$3/mo |
+
+    ### Build configuration
+
+    Heroku builds with the Go buildpack defined in `app.json`:
+
+    ```json
+    {
+      "buildpacks": [
+        { "url": "heroku/go" }
+      ]
+    }
+    ```
+
+    The `Procfile` defines the process:
+
+    ```
+    web: bin/Alita_Robot
+    ```
+
+    ### Variables set automatically by app.json
+
+    | Variable | Value |
+    |---|---|
+    | `AUTO_MIGRATE` | `true` |
+    | `DATABASE_URL` | Injected by PostgreSQL Essential add-on |
+    | `REDIS_URL` | Injected by Redis Mini add-on |
+
+    ### Variables you must set after deploy
+
+    | Variable | Description |
+    |---|---|
+    | `BOT_TOKEN` | Your bot token from [@BotFather](https://t.me/BotFather) |
+    | `OWNER_ID` | Your Telegram user ID |
+    | `MESSAGE_DUMP` | Log channel ID (must start with `-100`) |
+
+    ### Cost
+
+    Heroku requires paid dynos and paid add-ons — there is no free tier. Expect approximately **$13/month** for the Basic dyno, PostgreSQL Essential-0, and Redis Mini combination.
+
+    ### Heroku-specific notes
+
+    - `REDIS_URL` is automatically parsed — you do not need to set `REDIS_ADDRESS` separately.
+    - Heroku's ephemeral filesystem means the binary is rebuilt on each deploy; the Go buildpack handles this.
+    - Scaling beyond one dyno requires sticky sessions or switching to webhook mode to avoid duplicate update processing.
+  </Tab>
+</Tabs>
+
+## Comparison
+
+| | Render | Railway | Heroku |
+|---|---|---|---|
+| **Free tier** | Yes (750 hrs/mo) | No (Hobby $5/mo) | No |
+| **Build method** | Docker (`docker/alpine`) | Nixpacks (from source) | Go buildpack |
+| **PostgreSQL** | Auto-provisioned (free) | Auto-provisioned (included) | Essential-0 (~$5/mo) |
+| **Redis** | Auto-provisioned (free) | Auto-provisioned (included) | Mini (~$3/mo) |
+| **Health check** | `/health` | `/health` | — |
+| **Est. monthly cost** | Free | ~$5 | ~$13 |

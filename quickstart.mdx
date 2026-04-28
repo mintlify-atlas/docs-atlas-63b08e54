@@ -1,81 +1,164 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
-icon: 'rocket'
+title: "Get Alita Robot running quickly with Docker Compose"
+description: "Deploy Alita Robot to a Telegram group in under 5 minutes using Docker Compose. Includes PostgreSQL, Redis, and automatic database migrations."
 ---
 
-## Get started in three steps
+This guide walks you through deploying Alita Robot using Docker Compose — the fastest path from zero to a running bot. Docker Compose brings up the bot, a PostgreSQL database, and a Redis instance together, so you don't need to provision any external services. By the end you'll have Alita running in a Telegram group and responding to commands.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- **Docker and Docker Compose** installed on your machine or server
+- **A Telegram Bot Token** — create a bot with [@BotFather](https://t.me/BotFather) and copy the token it gives you
+- **Your Telegram user ID** — send a message to [@userinfobot](https://t.me/userinfobot) to find it
+- **A Telegram channel or group for logs** — Alita writes admin actions and errors to a log channel; note its ID (starts with `-100`)
 
-### Step 2: Deploy your changes
+## Setup steps
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Step title="Clone the repository">
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Clone the Alita Robot source and move into the project directory:
 
-### Step 3: Go live
+```bash
+git clone https://github.com/divkix/Alita_Robot.git
+cd Alita_Robot
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+</Step>
+
+<Step title="Create your .env file">
+
+Copy the sample environment file to `.env`:
+
+```bash
+cp sample.env .env
+```
+
+Open `.env` in your editor and fill in the required values:
+
+```env
+# Required — get your bot token from @BotFather
+BOT_TOKEN=123456:ABC-DEFghijklmnopqrstuvwxyz
+
+# Required — your Telegram user ID (numeric)
+OWNER_ID=123456789
+
+# Required — log channel ID (must start with -100)
+MESSAGE_DUMP=-1001234567890
+
+# Database — these match the defaults in docker-compose.yml
+DATABASE_URL=postgres://postgres:password@postgres:5432/alita_robot?sslmode=disable
+
+# Redis — matches the Redis service in docker-compose.yml
+REDIS_ADDRESS=redis:6379
+REDIS_PASSWORD=
+```
+
+<Note>
+  `AUTO_MIGRATE=true` is set automatically inside the Docker Compose configuration, so database tables are created on first startup without any extra steps.
+</Note>
+
+</Step>
+
+<Step title="Start all services">
+
+Run Docker Compose in detached mode to start Alita, PostgreSQL, and Redis:
+
+```bash
+docker-compose up -d
+```
+
+You should see output similar to:
+
+```
+[+] Running 4/4
+ ✔ Network alita_robot_default     Created
+ ✔ Container alita-postgres        Started
+ ✔ Container alita-redis           Started
+ ✔ Container alita-bot             Started
+```
+
+</Step>
+
+<Step title="Verify the bot started successfully">
+
+Check the bot's logs to confirm it connected to Telegram and finished loading modules:
+
+```bash
+docker-compose logs -f alita
+```
+
+Look for lines like:
+
+```
+{"level":"info","msg":"[Config] Configuration loaded and validated successfully"}
+{"level":"info","msg":"Bot started in polling mode"}
+{"level":"info","msg":"All modules loaded successfully"}
+```
+
+Press `Ctrl+C` to stop following the logs. The bot keeps running in the background.
+
+</Step>
+
+<Step title="Add the bot to a group and promote it to admin">
+
+1. Open Telegram and create a new group, or open an existing one you manage.
+2. Add your bot by searching for its username (the one you set with @BotFather).
+3. Open the group's member list, tap the bot's name, and select **Promote to admin**.
+4. Grant it the permissions it needs: **Delete messages**, **Ban users**, **Add new admins**, and **Pin messages**.
+
+</Step>
+
+<Step title="Test the bot">
+
+Send `/start` or `/ping` in the group. Alita should respond immediately.
+
+Try a few admin commands to confirm everything is working:
+
+```
+/id         — returns the chat ID and your user ID
+/ping       — checks bot response time
+/help       — lists all available commands
+```
+
+</Step>
+
+</Steps>
+
+## Managing your deployment
+
+Common Docker Compose commands for day-to-day operation:
+
+```bash
+# View live logs
+docker-compose logs -f alita
+
+# Stop all services
+docker-compose down
+
+# Restart the bot after changing .env
+docker-compose up -d --force-recreate alita
+
+# Pull the latest image and restart
+docker-compose pull && docker-compose up -d
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Configuration reference" icon="sliders" href="/configuration">
+    Explore all environment variables including webhook mode, connection pool tuning, worker pools, and monitoring settings.
+  </Card>
+  <Card title="Webhook mode" icon="webhook" href="/deployment/webhook">
+    Switch to webhook mode for production deployments. Lower latency and CPU usage than polling.
+  </Card>
+  <Card title="Admin commands" icon="gavel" href="/commands/admin">
+    Full reference for ban, mute, warn, promote, and all other admin commands.
+  </Card>
+  <Card title="Features overview" icon="shield" href="/features/moderation">
+    Learn how to configure moderation, anti-spam, filters, greetings, and notes.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

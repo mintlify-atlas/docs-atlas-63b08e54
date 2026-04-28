@@ -1,0 +1,426 @@
+---
+title: "Alita Robot codebase architecture and design overview"
+description: "How Alita Robot is structured: startup sequence, module system, PostgreSQL database layer, Redis cache, permissions, i18n, error handling, and monitoring."
+---
+
+Alita Robot is organized around a dispatcher-based module system where each feature area is an independent Go file that registers its handlers with the bot dispatcher. The startup sequence initializes shared infrastructure (cache, DB, tracing, HTTP server) before any module code runs, ensuring all dependencies are available when handlers begin executing.
+
+## Project structure
+
+```
+Alita_Robot/
+├── alita/
+│   ├── config/          # Configuration management (Viper + env vars)
+│   ├── db/              # Database models, CRUD operations, cache helpers
+│   │   ├── db.go        # GORM models, connection setup, pool config
+│   │   ├── *_db.go      # Domain operations (Get*, Add*, Update*, Delete*)
+│   │   ├── cache_helpers.go      # TTL management, cache invalidation
+│   │   ├── optimized_queries.go  # Singleflight-protected cached reads
+│   │   └── migrations.go         # Runtime migration engine
+│   ├── i18n/            # Locale manager, per-language translators
+│   ├── main.go          # LoadModules() — registers all modules
+│   ├── modules/         # One file per feature module
+│   │   ├── helpers.go   # moduleStruct, help system utilities
+│   │   └── *.go         # admin, bans, filters, greetings, notes, etc.
+│   └── utils/
+│       ├── async/             # Async processing with enable flag
+│       ├── cache/             # Admin cache, Redis helpers
+│       ├── callbackcodec/     # Versioned callback data encoding
+│       ├── chat_status/       # Permission guards and checks
+│       ├── constants/         # Cache TTLs, timeouts, intervals
+│       ├── error_handling/    # Panic recovery, error callbacks
+│       ├── errors/            # Error wrapping with file/line metadata
+│       ├── extraction/        # User IDs, durations from messages
+│       ├── helpers/           # MultiCommand, AddCmdToDisableable
+│       ├── httpserver/        # Unified HTTP server (health + webhook)
+│       ├── keyword_matcher/   # Aho-Corasick multi-pattern matching
+│       ├── media/             # Unified media send interface
+│       ├── monitoring/        # Activity monitor, auto-remediation
+│       ├── shutdown/          # Graceful shutdown coordinator
+│       └── tracing/           # OpenTelemetry distributed tracing
+├── migrations/          # Timestamped SQL files (source of truth for schema)
+├── locales/             # YAML translation files (en, es, fr, hi, ru, pt, id)
+├── scripts/             # Translation checker, docs generator
+└── docker/              # Docker configurations and Dockerfile
+```
+
+## Key architectural components
+
+<CardGroup cols={2}>
+  <Card title="Module system" icon="puzzle-piece">
+    Each feature is a `LoadXxx(dispatcher)` function. Modules register handlers, help text, and disableable commands with the dispatcher on startup.
+  </Card>
+  <Card title="Database layer" icon="database">
+    PostgreSQL + GORM with connection pooling. All tables use surrogate auto-increment PKs. Schema managed via timestamped SQL migration files.
+  </Card>
+  <Card title="Cache layer" icon="bolt">
+    Redis-only via `gocache`. `singleflight` prevents cache stampedes. Keys follow the format `alita:{module}:{identifier}`.
+  </Card>
+  <Card title="Permission system" icon="shield">
+    `RequireGroup`, `RequireBotAdmin`, `RequireUserAdmin`, and granular permission checks in `alita/utils/chat_status/`. Results cached to reduce Telegram API calls.
+  </Card>
+  <Card title="i18n system" icon="language">
+    Singleton `LocaleManager` with per-language `Translator` instances. YAML locale files embedded at compile time via `go:embed`.
+  </Card>
+  <Card title="Graceful shutdown" icon="power-off">
+    LIFO handler execution with 60-second total timeout. Every registered handler gets individual panic recovery.
+  </Card>
+</CardGroup>
+
+## Startup sequence
+
+The startup flow in `main.go` initializes infrastructure in a deliberate order before any Telegram updates are processed:
+
+<Steps>
+  <Step title="Locale manager init">
+    The `LocaleManager` singleton loads all YAML locale files embedded via `go:embed`. This runs first because modules need translation strings during their own initialization.
+  </Step>
+  <Step title="OpenTelemetry tracing">
+    `tracing.InitTracing()` configures distributed tracing with OTLP or stdout exporters. Controlled via `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, and `OTEL_TRACES_SAMPLE_RATE` environment variables.
+  </Step>
+  <Step title="HTTP transport and bot init">
+    Configures an HTTP transport with connection pooling, optionally rewriting the Telegram API server URL. Then initializes the `gotgbot.Bot` instance and pre-warms the Telegram API connection.
+  </Step>
+  <Step title="Database and cache init">
+    Opens the PostgreSQL connection via GORM with retry logic (exponential backoff, 5 attempts). Connects to Redis. If `AUTO_MIGRATE=true`, runs any pending SQL migrations from `migrations/`.
+  </Step>
+  <Step title="Dispatcher and async processing">
+    Creates the `ext.Dispatcher` with a configurable maximum goroutine count. Initializes async processing if `EnableAsyncProcessing` is configured.
+  </Step>
+  <Step title="Monitoring systems">
+    Starts three background goroutines: background stats (system stats every 30s, DB stats every 1m, summary every 5m), auto-remediation (GC trigger on memory pressure), and the activity monitor (tracks per-chat and per-user activity).
+  </Step>
+  <Step title="Graceful shutdown and HTTP server">
+    Registers the graceful shutdown coordinator (LIFO, 60s timeout). Starts the unified HTTP server on `HTTP_PORT` (default 8080), which serves health checks, Prometheus metrics, pprof endpoints, and the webhook handler on a single port.
+  </Step>
+  <Step title="Mode selection and module loading">
+    Selects polling or webhook mode based on `USE_WEBHOOKS`. Calls `alita.LoadModules(dispatcher)` to register all handlers — this runs last so all infrastructure is ready.
+  </Step>
+</Steps>
+
+## Module system
+
+<AccordionGroup>
+  <Accordion title="Module structure pattern">
+    Each module is built around a `moduleStruct` value type and a `LoadXxx(dispatcher)` function. The struct holds metadata used by the help system:
+
+    ```go
+    // moduleStruct is defined in alita/modules/helpers.go
+    type moduleStruct struct {
+        moduleName        string
+        handlerGroup      int
+        permHandlerGroup  int
+        restrHandlerGroup int
+        defaultRulesBtn   string
+        AbleMap           moduleEnabled
+        AltHelpOptions    map[string][]string
+        helpableKb        map[string][][]gotgbot.InlineKeyboardButton
+    }
+    ```
+
+    A typical module (e.g., `bans`) follows this pattern:
+
+    ```go
+    var BansModule = moduleStruct{
+        moduleName:   "Bans",
+        handlerGroup: moduleGroup,
+    }
+
+    // Handler methods use value receivers
+    func (BansModule) ban(b *gotgbot.Bot, ctx *ext.Context) error {
+        // ...
+        return ext.EndGroups
+    }
+
+    // LoadBans registers all handlers with the dispatcher
+    func LoadBans(dispatcher *ext.Dispatcher) {
+        dispatcher.AddHandler(handlers.NewCommand("ban", BansModule.ban))
+        // Multiple aliases via helpers.MultiCommand:
+        helpers.MultiCommand(dispatcher, []string{"ban", "sban"}, BansModule.ban)
+        // Disableable commands:
+        helpers.AddCmdToDisableable("ban")
+    }
+    ```
+
+    Handler return values control propagation:
+    - `ext.EndGroups` — stop processing, no further handlers run
+    - `ext.ContinueGroups` — continue to the next handler (used for monitoring/watcher handlers)
+    - `error` — report the error up the chain
+  </Accordion>
+
+  <Accordion title="Adding a new module">
+    Follow these five steps to add a new feature module:
+
+    1. **Create DB operations** in `alita/db/your_module_db.go` — implement `Get*`, `Add*`, `Update*`, `Delete*` functions using the shared `CreateRecord`, `UpdateRecord`, `GetRecord` helpers from `db.go`.
+
+    2. **Implement handlers** in `alita/modules/your_module.go` — define a `moduleStruct` instance, write handler methods with value receivers, and return `ext.EndGroups` or `ext.ContinueGroups`.
+
+    3. **Create the Load function**:
+       ```go
+       func LoadYourModule(dispatcher *ext.Dispatcher) {
+           dispatcher.AddHandler(handlers.NewCommand("yourcommand", YourModule.yourHandler))
+           HelpModule.AbleMap.Store(YourModule.moduleName, true)
+       }
+       ```
+
+    4. **Register in `alita/main.go`** — add `modules.LoadYourModule(dispatcher)` to the `LoadModules()` function. Load order matters; help module always loads last.
+
+    5. **Add translations** to every locale file in `locales/` (en, es, fr, hi, ru, pt, id). Missing keys cause silent failures at runtime.
+  </Accordion>
+
+  <Accordion title="Handler groups">
+    Handlers are registered in numbered groups that control processing order:
+
+    | Group range | Purpose |
+    |-------------|---------|
+    | Negative (e.g., `-1`) | Early interception (antiflood, antispam checks that must run before commands) |
+    | `0` | Standard command handlers (default) |
+    | `4`–`10` | Message watchers and monitoring handlers that use `ext.ContinueGroups` |
+
+    The `antiflood` and `antispam` modules also use Go `init()` functions to start background goroutines independently of the dispatcher lifecycle.
+  </Accordion>
+</AccordionGroup>
+
+## Database layer
+
+<AccordionGroup>
+  <Accordion title="GORM models and surrogate key pattern">
+    All tables use an auto-increment `id` as the primary key. External IDs (`user_id`, `chat_id`) have unique constraints but are not primary keys. This surrogate key pattern avoids issues with GORM's zero-value handling and simplifies foreign key relationships.
+
+    ```go
+    // From alita/db/db.go — illustrates the surrogate key pattern
+    type User struct {
+        ID           uint      `gorm:"primaryKey;autoIncrement" json:"-"`
+        UserId       int64     `gorm:"column:user_id;uniqueIndex;not null"`
+        UserName     string    `gorm:"column:username;index"`
+        Name         string    `gorm:"column:name"`
+        Language     string    `gorm:"column:language;default:'en'"`
+        LastActivity time.Time `gorm:"column:last_activity"`
+        CreatedAt    time.Time `gorm:"column:created_at"`
+        UpdatedAt    time.Time `gorm:"column:updated_at"`
+    }
+    ```
+
+    Custom GORM types (e.g., `ButtonArray`, `StringArray`, `Int64Array`) implement the `Scanner` and `Valuer` interfaces for JSONB column serialization:
+
+    ```go
+    type ButtonArray []Button
+
+    func (ba *ButtonArray) Scan(value any) error {
+        bytes, ok := value.([]byte)
+        if !ok {
+            return errors.New("type assertion to []byte failed")
+        }
+        return json.Unmarshal(bytes, ba)
+    }
+
+    func (ba ButtonArray) Value() (driver.Value, error) {
+        if len(ba) == 0 {
+            return "[]", nil
+        }
+        return json.Marshal(ba)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Shared CRUD helpers">
+    `alita/db/db.go` provides generic helpers used by all domain-specific `*_db.go` files:
+
+    | Function | Description |
+    |----------|-------------|
+    | `CreateRecord(model)` | Insert a new row |
+    | `UpdateRecord(model, where, updates)` | Update matching rows, skips zero values |
+    | `UpdateRecordWithZeroValues(model, where, updates)` | Update including `false`, `0`, `""` |
+    | `GetRecord(model, where)` | Fetch a single row, returns `gorm.ErrRecordNotFound` |
+    | `GetRecords(models, where)` | Fetch multiple matching rows |
+
+    All helpers have `WithContext` variants for OpenTelemetry trace propagation (e.g., `CreateRecordWithContext(ctx, model)`).
+
+    **Never ignore database errors.** Assign errors to `err` and check them — nil returns from unchecked DB calls cause panics downstream.
+  </Accordion>
+
+  <Accordion title="Schema migrations">
+    The `migrations/` directory contains 27 timestamped SQL files that are the source of truth for the database schema. Migrations are tracked in the `schema_migrations` table and run transactionally and idempotently.
+
+    The runtime migration engine in `alita/db/migrations.go` auto-cleans Supabase-specific SQL at runtime (`GRANT`, RLS statements) so the same files work on both Supabase-hosted and vanilla PostgreSQL instances.
+
+    To apply migrations manually:
+    ```bash
+    export PSQL_DB_HOST=localhost PSQL_DB_NAME=alita_robot \
+           PSQL_DB_USER=postgres PSQL_DB_PASSWORD=password
+    make psql-migrate
+    ```
+
+    Set `AUTO_MIGRATE=true` to apply migrations automatically on bot startup.
+  </Accordion>
+</AccordionGroup>
+
+## Cache layer
+
+Redis is the only cache backend, accessed via the `gocache` library. The cache key format is `alita:{module}:{identifier}` (e.g., `alita:adminCache:123456789`).
+
+<AccordionGroup>
+  <Accordion title="Stampede protection with singleflight">
+    `alita/db/cache_helpers.go` wraps all DB-backed cached reads with `golang.org/x/sync/singleflight` to prevent cache stampedes — if 100 goroutines simultaneously request the same key that isn't cached, only one DB query runs and all 100 goroutines receive the result.
+
+    ```go
+    // Usage pattern in optimized_queries.go
+    result, err, _ := sf.Do(cacheKey, func() (any, error) {
+        // Only one goroutine executes this; others wait for the result
+        return loadFromDatabase(id)
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Cache invalidation rules">
+    Every DB write function that modifies cached data must explicitly invalidate the corresponding cache key. This is a hard rule — missing invalidation causes stale reads that are difficult to debug.
+
+    ```go
+    func UpdateUser(userID int64, updates map[string]any) error {
+        err := UpdateRecord(&User{}, User{UserId: userID}, updates)
+        if err != nil {
+            return err
+        }
+        // Must invalidate cache after every write
+        cache.Marshal.Delete(ctx, fmt.Sprintf("alita:user:%d", userID))
+        return nil
+    }
+    ```
+
+    Admin permissions are cached in `alita/utils/cache/adminCache.go` with their own invalidation path.
+  </Accordion>
+</AccordionGroup>
+
+## Permission system
+
+All permission checks live in `alita/utils/chat_status/`. There are two categories:
+
+**Guards** (send an error message to the user on failure and return early):
+
+| Function | Description |
+|----------|-------------|
+| `RequireGroup()` | Reject if not a group or supergroup |
+| `RequirePrivate()` | Reject if not a private chat |
+| `RequireBotAdmin()` | Reject if the bot is not an admin |
+| `RequireUserAdmin()` | Reject if the invoking user is not an admin |
+| `RequireUserOwner()` | Reject if the invoking user is not the chat owner |
+
+**Bool checks** (return true/false, no automatic error message):
+
+| Function | Description |
+|----------|-------------|
+| `IsBotAdmin()` | Check if bot has admin rights |
+| `IsUserAdmin()` | Check if a user is an admin (returns `false` for channel IDs) |
+| `IsUserInChat()` | Check membership status |
+| `IsUserBanProtected()` | Check if user is protected from bans |
+| `CanUserRestrict()`, `CanBotRestrict()` | Granular restriction permission checks |
+| `CanUserPromote()`, `CanBotPromote()` | Granular promotion permission checks |
+| `CheckDisabledCmd()` | Check if a command is disabled for the chat |
+
+All results are cached to minimize Telegram API calls. Anonymous admin detection falls back to an inline keyboard challenge.
+
+## Internationalization
+
+<AccordionGroup>
+  <Accordion title="Locale system overview">
+    A singleton `LocaleManager` (in `alita/i18n/`) holds one `Translator` per language. All YAML locale files are embedded at compile time via `go:embed`, so no runtime file I/O is needed.
+
+    Supported locales: `en`, `es`, `fr`, `hi`, `ru`, `pt`, `id`.
+
+    To get a translator in handler code:
+
+    ```go
+    tr := i18n.MustNewTranslator(db.GetLanguage(ctx))
+    text, _ := tr.GetString("ban_user_banned", i18n.TranslationParams{
+        "user": html.EscapeString(user.FirstName),
+    })
+    ```
+
+    Named parameters in code (`{"user": value}`) are mapped to positional `%s` formatters in YAML.
+  </Accordion>
+
+  <Accordion title="YAML locale conventions">
+    Use double quotes in YAML for strings that contain escape sequences (`\n`, `\t`). Single quotes preserve them literally:
+
+    ```yaml
+    # Double quotes — \n becomes a real newline
+    ban_user_banned: "User %s has been banned.\nReason: %s"
+
+    # Single quotes — \n is literal backslash-n
+    ban_user_banned: 'User %s has been banned.\nReason: %s'
+    ```
+
+    Locale strings use Markdown formatting, but the bot sends HTML. Convert before sending:
+
+    ```go
+    htmlText := tgmd2html.MD2HTMLV2(markdownText)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Error handling
+
+Error recovery operates at four layers, from outermost to innermost:
+
+1. **Dispatcher** — the `gotgbot` dispatcher catches panics from handler goroutines
+2. **Worker pool** — any worker pool wraps task execution in panic recovery
+3. **Decorator** — command decorators (`MultiCommand`, etc.) wrap handler calls
+4. **Handler** — individual handlers use `defer error_handling.RecoverFromPanic("context", "func")`
+
+Expected Telegram API errors (bot not admin, chat closed, message not found) are filtered via `helpers.IsExpectedTelegramError()` and not reported as errors. Custom error wrapping in `alita/utils/errors/` adds file, line number, and function name metadata via `runtime.Caller`:
+
+```go
+return errors.Wrapf(err, "GetUser(%d)", userID)
+```
+
+## Graceful shutdown
+
+The shutdown coordinator in `alita/utils/shutdown/` maintains a registry of handler functions. On SIGTERM or SIGINT:
+
+1. Handlers execute in **LIFO order** (last registered, first executed)
+2. Each handler runs with its own panic recovery
+3. The total timeout is **60 seconds** — handlers that exceed their share are cancelled
+
+Database connections, Redis clients, the HTTP server, and the Telegram poller/webhook all register shutdown handlers during startup.
+
+## Monitoring
+
+<AccordionGroup>
+  <Accordion title="Activity monitor">
+    Tracks `last_activity` timestamps per chat and per user. Used to calculate daily, weekly, and monthly active user counts. Chats and users that exceed the inactivity threshold are marked as inactive and excluded from bulk operations.
+  </Accordion>
+
+  <Accordion title="Auto-remediation">
+    A 4-tier memory management system responds to memory pressure:
+
+    | Tier | Threshold | Action |
+    |------|-----------|--------|
+    | Warning | 80% | Log warning |
+    | GC trigger | 60% memory free | Force `runtime.GC()` |
+    | Aggressive cleanup | — | Multiple GC cycles + `debug.FreeOSMemory()` |
+    | Restart recommendation | 150%+ baseline | Log critical warning |
+  </Accordion>
+
+  <Accordion title="Background stats">
+    A background goroutine collects and logs statistics on a fixed schedule:
+
+    - System stats (goroutine count, memory, GC runs): every 30 seconds
+    - Database pool stats (open connections, idle, wait count): every 1 minute
+    - Summary report: every 5 minutes
+
+    When goroutine count exceeds 1,000 or allocated memory exceeds 500 MB, a warning is logged.
+  </Accordion>
+</AccordionGroup>
+
+## Additional utility packages
+
+| Package | Purpose |
+|---------|---------|
+| `alita/utils/extraction/` | Extract user IDs, chat IDs, and time durations from Telegram messages |
+| `alita/utils/keyword_matcher/` | Aho-Corasick multi-pattern matching with per-chat caching (used by filters and blacklists) |
+| `alita/utils/media/` | Unified interface for sending notes, filters, and greeting media |
+| `alita/utils/tracing/` | OpenTelemetry spans, OTLP/stdout exporters, cache key sanitization |
+| `alita/utils/httpserver/` | Single HTTP server for health checks, Prometheus metrics, pprof, and webhook |
+| `alita/utils/callbackcodec/` | Versioned callback data encoding — produces `<namespace>\|v1\|<url-encoded fields>` |
+| `alita/utils/constants/` | Centralized cache TTLs, timeouts, and interval durations |
+| `alita/utils/helpers/decorators.go` | `MultiCommand` (register aliases) and `AddCmdToDisableable` |

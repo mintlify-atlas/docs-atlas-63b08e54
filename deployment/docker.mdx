@@ -1,0 +1,256 @@
+---
+title: "Deploy Alita Robot with Docker Compose or docker run"
+description: "Run Alita Robot using Docker Compose for a full stack with PostgreSQL and Redis, or use docker run against your existing database infrastructure."
+---
+
+Docker is the recommended way to deploy Alita Robot. Official multi-architecture images are published to `ghcr.io/divkix/alita_robot` for both `linux/amd64` and `linux/arm64`, built from a distroless base for minimal attack surface. You can go from zero to a running bot in under five minutes using Docker Compose, or drop the container into an environment that already has PostgreSQL and Redis with a single `docker run` command.
+
+<Note>
+  Docker images set `AUTO_MIGRATE=false` by default in the compose file. Set `AUTO_MIGRATE=true` in your environment to let the bot apply database migrations automatically on every startup — this is the easiest approach for fresh deployments.
+</Note>
+
+## Docker Compose (full stack)
+
+The repository's `docker-compose.yml` provisions everything: the bot, PostgreSQL 18, and Redis 7. All three services include health checks and resource limits, and the bot waits for healthy database connections before starting.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    ```
+  </Step>
+
+  <Step title="Create your environment file">
+    Copy the sample and fill in your values:
+
+    ```bash
+    cp sample.env .env
+    ```
+
+    At minimum you must set these five variables:
+
+    ```env
+    BOT_TOKEN=your_bot_token_from_botfather
+    OWNER_ID=your_telegram_user_id
+    MESSAGE_DUMP=-100xxxxxxxxx
+    DATABASE_URL=postgresql://alita:alita@postgres:5432/alita
+    REDIS_ADDRESS=redis:6379
+    ```
+  </Step>
+
+  <Step title="Enable auto-migration">
+    Add `AUTO_MIGRATE=true` to your `.env` so the bot creates its schema on first boot:
+
+    ```env
+    AUTO_MIGRATE=true
+    ```
+  </Step>
+
+  <Step title="Start all services">
+    ```bash
+    docker-compose up -d
+    ```
+
+    This starts three containers: `alita-robot`, `alita-postgres`, and `alita-redis`.
+  </Step>
+
+  <Step title="Verify the bot is running">
+    ```bash
+    docker-compose logs -f alita
+    ```
+
+    You should see the bot connect to Telegram and begin processing updates.
+  </Step>
+</Steps>
+
+### Full docker-compose.yml
+
+```yaml
+services:
+  alita:
+    image: ghcr.io/divkix/alita_robot:latest
+    container_name: alita-robot
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://alita:alita@postgres:5432/alita
+      REDIS_ADDRESS: redis:6379
+      REDIS_PASSWORD: redis
+      AUTO_MIGRATE: "false"
+      USE_WEBHOOKS: "true"
+      HTTP_PORT: "8080"
+      DROP_PENDING_UPDATES: "true"
+      BOT_TOKEN: ${BOT_TOKEN}
+      OWNER_ID: ${OWNER_ID}
+      MESSAGE_DUMP: ${MESSAGE_DUMP}
+      WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/alita_robot", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: alita-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: alita
+      POSTGRES_PASSWORD: alita
+      POSTGRES_DB: alita
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alita -d alita"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: alita-redis
+    restart: always
+    command: redis-server --requirepass redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+```
+
+### Useful compose commands
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove persistent volumes (destructive)
+docker-compose down -v
+
+# Pull the latest image and restart
+docker-compose pull && docker-compose up -d
+```
+
+## Docker Run (bot only)
+
+<Tabs>
+  <Tab title="Docker Compose">
+    Use Docker Compose when you want the bot, PostgreSQL, and Redis all managed together. See the full stack setup above — it handles networking, health checks, and restart policies automatically.
+  </Tab>
+  <Tab title="Docker Run">
+    Use `docker run` when you already have PostgreSQL and Redis running elsewhere (self-hosted, managed cloud, or another container):
+
+    ```bash
+    docker run -d \
+      --name alita-bot \
+      --restart unless-stopped \
+      -e BOT_TOKEN="your_bot_token" \
+      -e DATABASE_URL="postgres://user:password@your-postgres-host:5432/alita_robot?sslmode=disable" \
+      -e REDIS_ADDRESS="your-redis-host:6379" \
+      -e REDIS_PASSWORD="your-redis-password" \
+      -e OWNER_ID="your_telegram_id" \
+      -e MESSAGE_DUMP="-100xxxxxxxxx" \
+      -e AUTO_MIGRATE="true" \
+      -p 8080:8080 \
+      ghcr.io/divkix/alita_robot:latest
+    ```
+
+    Add any additional environment variables from `sample.env` using `-e KEY=value` flags.
+  </Tab>
+</Tabs>
+
+## Local Bot API server
+
+Running a local Telegram Bot API server gives you higher file size limits and reduces latency. The compose file includes a `local-bot-api` profile for this. Add these variables to your `.env`:
+
+```env
+# Obtain API_ID and API_HASH from https://my.telegram.org/apps
+TELEGRAM_API_ID=your_api_id
+TELEGRAM_API_HASH=your_api_hash
+API_SERVER=http://telegram-bot-api:8081
+```
+
+Then start the stack with the profile enabled:
+
+```bash
+docker compose --profile local-bot-api up -d
+```
+
+## Health check
+
+The bot binary exposes a `--health` flag used by Docker's built-in health check:
+
+```bash
+# Run a manual health check against a running container
+docker exec alita-bot /alita_robot --health
+```
+
+The compose file configures this automatically with a 30-second interval, 10-second timeout, and 3 retries. The `/health` HTTP endpoint (on `HTTP_PORT`) is also available for reverse proxies and platform health checks.
+
+## Building from source
+
+To build your own image from the repository:
+
+```bash
+# Clone the repository
+git clone https://github.com/divkix/Alita_Robot.git
+cd Alita_Robot
+
+# Build for your current platform
+docker build -f docker/alpine -t alita_robot:local .
+
+# Build for a specific platform (e.g. linux/arm64)
+docker build --platform linux/arm64 -f docker/alpine -t alita_robot:local .
+```
+
+The `docker/alpine` Dockerfile uses a two-stage build: Go compiles the binary in a `golang:alpine` builder stage, and the final image is based on `gcr.io/distroless/static-debian12` — no shell, no package manager, minimal footprint.
+
+```dockerfile
+# Stage 1: Build
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download && go mod verify
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -trimpath -ldflags="-s -w" -o alita_robot .
+
+# Stage 2: Minimal runtime
+FROM gcr.io/distroless/static-debian12
+USER 65532:65532
+WORKDIR /app
+COPY --from=builder /app/alita_robot /app/alita_robot
+COPY --from=builder /app/migrations /app/migrations
+EXPOSE 8080
+ENTRYPOINT ["/app/alita_robot"]
+```
+
+<Tip>
+  Pin a specific image tag in production (e.g. `ghcr.io/divkix/alita_robot:v1.2.3`) rather than using `latest` to avoid unexpected updates.
+</Tip>

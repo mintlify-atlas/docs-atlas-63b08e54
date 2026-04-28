@@ -1,133 +1,75 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
-icon: 'star'
+title: "Alita Robot: Fast Telegram Group Management Bot"
+description: "Alita is a modern, high-performance Telegram group management bot built with Go. Deploy in minutes with Docker, Railway, Render, or Heroku."
 ---
 
-## Setting up
+Alita Robot is a powerful Telegram group management bot built with Go and the Gotgbot library. It provides comprehensive moderation tools, spam protection, customizable greetings, keyword filters, notes, and much more — all running at Go-native speed with Redis caching and PostgreSQL persistence.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get Alita running in under 5 minutes with Docker Compose.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Configuration" icon="sliders" href="/configuration">
+    Configure environment variables, webhooks, and performance settings.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Command Reference" icon="terminal" href="/commands/admin">
+    Browse every admin and user command with usage examples.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Features" icon="shield" href="/features/moderation">
+    Explore moderation, filters, greetings, anti-spam, and more.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Get started in minutes
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Clone and configure">
+    Clone the repository and copy `sample.env` to `.env`. Set your `BOT_TOKEN`, `OWNER_ID`, and `MESSAGE_DUMP` values.
+  </Step>
+  <Step title="Start with Docker Compose">
+    Run `docker-compose up -d` to start Alita along with PostgreSQL and Redis. Database migrations run automatically.
+  </Step>
+  <Step title="Add your bot to a group">
+    Open Telegram, add your bot to a group, and promote it to admin. Alita is ready to manage your community.
+  </Step>
+  <Step title="Configure features">
+    Use commands like `/setwelcome`, `/setflood`, and `/blacklist` to customize Alita for your group's needs.
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Key features
 
-## Make your content agent ready
-
-Make your docs work for humans and AI agents alike.
-
-<Columns cols={2}>
-  <Card
-    title="Prompt component"
-    icon="robot"
-    href="/agent-ready/prompt"
-  >
-    Embed shareable AI prompts readers can copy or open in Cursor.
+<CardGroup cols={2}>
+  <Card title="Moderation" icon="gavel" href="/features/moderation">
+    Ban, mute, kick, and warn users. Promote and demote admins with granular permission control.
   </Card>
-  <Card
-    title="Visibility"
-    icon="eye"
-    href="/agent-ready/visibility"
-  >
-    Show different content to humans and agents reading your docs.
+  <Card title="Anti-Spam" icon="shield-halved" href="/features/anti-spam">
+    Configurable flood control, CAPTCHA verification for new members, and word/sticker blacklists.
   </Card>
-  <Card
-    title="Contextual menu"
-    icon="bolt"
-    href="/agent-ready/contextual"
-  >
-    Give readers one-click access to Claude, ChatGPT, Cursor, and more.
+  <Card title="Content Management" icon="folder-open" href="/features/content-management">
+    Save notes, create keyword-triggered filters with regex support, and manage pinned messages.
   </Card>
-  <Card
-    title="AI coding tools"
-    icon="wand-magic-sparkles"
-    href="/ai-tools/claude-code"
-  >
-    Set up Claude Code, Cursor, or Windsurf with Mintlify's skill.
+  <Card title="Greetings" icon="hand-wave" href="/features/greetings">
+    Fully customizable welcome and goodbye messages with variable substitution and media support.
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Deploy anywhere
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Alita supports one-click deployment to major platforms and runs in both polling and webhook modes.
+
+<CardGroup cols={3}>
+  <Card title="Docker" icon="docker" href="/deployment/docker">
+    Self-host with Docker Compose — batteries included.
+  </Card>
+  <Card title="Webhook Mode" icon="webhook" href="/deployment/webhook">
+    Production-grade webhook deployment with Cloudflare Tunnel.
+  </Card>
+  <Card title="Cloud Platforms" icon="cloud" href="/deployment/platforms">
+    One-click deploy to Render, Railway, or Heroku.
+  </Card>
+</CardGroup>
+
+<Note>
+  Alita requires a Telegram Bot Token from [@BotFather](https://t.me/BotFather), a PostgreSQL database, and a Redis instance. All three are included in the Docker Compose setup.
+</Note>

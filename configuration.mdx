@@ -1,0 +1,143 @@
+---
+title: "Alita Robot configuration and environment variables"
+description: "Full reference for every Alita Robot environment variable: required settings, webhook mode, database pool tuning, worker pools, monitoring, and migrations."
+---
+
+Alita Robot reads all configuration from environment variables at startup. In a Docker deployment you set these in a `.env` file in the project root; on cloud platforms you set them in the platform's environment dashboard. This page documents every variable grouped by function, including defaults and valid ranges sourced directly from the bot's configuration loader.
+
+<Warning>
+  Never commit your `.env` file to version control. It contains secrets like your bot token, database password, and Redis credentials. Add `.env` to your `.gitignore` and treat it like a private key.
+</Warning>
+
+<Tip>
+  The repository ships with a fully annotated `sample.env` file at the project root. Copy it with `cp sample.env .env` and edit the values in place — every optional variable is present but commented out with its default value and recommended range.
+</Tip>
+
+## Required variables
+
+These five variables must be set before the bot will start. The bot exits at startup with a validation error if any are missing.
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `BOT_TOKEN` | Telegram Bot Token from [@BotFather](https://t.me/BotFather). | `123456:ABC-DEF...` |
+| `DATABASE_URL` | PostgreSQL connection string. | `postgres://postgres:password@localhost:5432/alita_robot?sslmode=disable` |
+| `REDIS_ADDRESS` | Redis server address as `host:port`. Alternatively, set `REDIS_URL` as a full Redis URL (e.g. from Railway or Heroku). | `redis:6379` |
+| `OWNER_ID` | Your Telegram user ID (numeric). Grants full bot owner permissions. | `123456789` |
+| `MESSAGE_DUMP` | ID of a Telegram channel used for admin action logs. Must start with `-100`. | `-1001234567890` |
+
+## Optional bot settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEBUG` | `false` | Enables verbose debug logging. Performance monitoring and background stats are automatically disabled when `DEBUG=true`. |
+| `DROP_PENDING_UPDATES` | `true` | Discards updates that arrived while the bot was offline. Set to `false` to process the backlog on startup. |
+| `ENABLED_LOCALES` | `en` | Comma-separated list of locale codes to activate. Available: `en`, `es`, `fr`, `hi`, `ru`, `pt`, `id`. Example: `en,es,fr`. |
+| `REDIS_PASSWORD` | _(empty)_ | Password for Redis authentication. Leave empty for unauthenticated Redis. Also parsed automatically from `REDIS_URL` if set. |
+
+## Webhook settings
+
+By default Alita uses long polling. Set `USE_WEBHOOKS=true` to switch to webhook mode, which offers lower latency and less CPU usage in production. All three webhook variables are required when webhooks are enabled.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_WEBHOOKS` | `false` | Set to `true` to enable webhook mode instead of polling. |
+| `WEBHOOK_DOMAIN` | — | Full HTTPS URL of your webhook endpoint, e.g. `https://alita-bot.yourdomain.com`. Required when `USE_WEBHOOKS=true`. |
+| `WEBHOOK_SECRET` | — | A random secret string used to authenticate webhook requests from Telegram. Required when `USE_WEBHOOKS=true`. |
+| `HTTP_PORT` | `8080` | Port for the unified HTTP server. Serves health checks, Prometheus metrics, pprof (if enabled), and the webhook endpoint. Valid range: 1–65535. |
+| `CLOUDFLARE_TUNNEL_TOKEN` | _(empty)_ | Token for the Cloudflare Tunnel service defined in `docker-compose.yml`. Only required when using Cloudflare Tunnel for webhook routing. |
+
+<Note>
+  `WEBHOOK_PORT` is deprecated. Use `HTTP_PORT` instead. If `HTTP_PORT` is not set but `WEBHOOK_PORT` is, the bot uses `WEBHOOK_PORT` for backward compatibility and logs a warning.
+</Note>
+
+## Database connection pool
+
+These settings control how many PostgreSQL connections the bot maintains. The defaults are tuned for medium-traffic deployments; adjust them based on your database server's capacity.
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `DB_MAX_IDLE_CONNS` | `50` | 1–100 | Maximum idle connections kept open in the pool. Higher values improve connection reuse. |
+| `DB_MAX_OPEN_CONNS` | `200` | 1–1000 | Maximum total open connections to the database. Size for your expected burst traffic. |
+| `DB_CONN_MAX_LIFETIME_MIN` | `240` | 1–1440 | How long (in minutes) a connection can be reused before it is closed and replaced. |
+| `DB_CONN_MAX_IDLE_TIME_MIN` | `60` | 1–60 | How long (in minutes) an idle connection can stay open before being closed. |
+| `ENABLE_DB_MONITORING` | `false` | — | Enables database connection pool monitoring logs and the `/db_metrics` endpoint. |
+
+## Worker pool sizes
+
+Alita uses separate worker pools for different categories of work. If not set, defaults are calculated from your CPU core count where applicable.
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `CHAT_VALIDATION_WORKERS` | `10` | 1–100 | Concurrent workers for validating chats during cleanup operations. |
+| `DATABASE_WORKERS` | `5` | 1–50 | Concurrent workers for database operations. Reduce if your database connection limit is tight. |
+| `MESSAGE_PIPELINE_WORKERS` | CPU count (max 8) | 1–50 | Workers for concurrent message validation stages. |
+| `BULK_OPERATION_WORKERS` | `4` | 1–20 | Workers for large batch database operations such as bulk filter imports. |
+| `CACHE_WORKERS` | `3` | 1–20 | Workers for concurrent Redis cache operations. |
+| `STATS_COLLECTION_WORKERS` | `2` | 1–10 | Workers for background performance metrics collection. |
+
+## Performance and concurrency
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `DISPATCHER_MAX_ROUTINES` | `200` | 1–1000 | Maximum concurrent goroutines the update dispatcher can spawn. Increase for high-traffic bots; decrease for low-resource environments. |
+| `MAX_CONCURRENT_OPERATIONS` | `50` | 1–1000 | Cap on total concurrent operations across all worker pools. |
+| `OPERATION_TIMEOUT_SECONDS` | `30` | 1–300 | Default timeout in seconds for individual operations. |
+| `ENABLE_QUERY_PREFETCHING` | `true` | — | Batches related database queries to reduce round-trip count. |
+| `ENABLE_CACHE_PREWARMING` | `true` | — | Loads frequently accessed data into Redis during startup. |
+| `ENABLE_ASYNC_PROCESSING` | `true` | — | Processes non-critical work (logging, stats, cleanup) asynchronously. |
+| `ENABLE_RESPONSE_CACHING` | `true` | — | Caches bot responses to reduce duplicate Telegram API calls. |
+| `RESPONSE_CACHE_TTL` | `30` | 1–3600 | How long (in seconds) to cache bot responses. |
+| `ENABLE_BATCH_REQUESTS` | `true` | — | Groups multiple Telegram API calls into batches for better throughput. |
+| `BATCH_REQUEST_TIMEOUT_MS` | `100` | 10–5000 | How long (in milliseconds) to wait before sending a batch of API requests. |
+| `ENABLE_HTTP_CONNECTION_POOLING` | `true` | — | Reuses HTTP connections to `api.telegram.org`. |
+| `HTTP_MAX_IDLE_CONNS` | `100` | 10–1000 | Maximum idle HTTP connections in the pool. |
+| `HTTP_MAX_IDLE_CONNS_PER_HOST` | `50` | 5–500 | Maximum idle HTTP connections per host. |
+
+## Monitoring
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_PERFORMANCE_MONITORING` | `true` (production) | Enables automatic resource monitoring and alerting. Auto-disabled when `DEBUG=true`. |
+| `ENABLE_BACKGROUND_STATS` | `true` (production) | Collects system and database stats every 30–60 seconds and logs a summary every 5 minutes. Auto-disabled when `DEBUG=true`. |
+| `ENABLE_PPROF` | `false` | Exposes Go pprof endpoints at `/debug/pprof/*` for CPU, memory, and goroutine analysis. **Never enable in production** — these endpoints expose internal runtime details. |
+| `RESOURCE_MAX_GOROUTINES` | `1000` | Goroutine count threshold that triggers automatic cleanup. Range: 100–10000. |
+| `RESOURCE_MAX_MEMORY_MB` | `500` | Memory usage in MB that triggers automatic cleanup. Range: 100–10000. |
+| `RESOURCE_GC_THRESHOLD_MB` | `400` | Memory in MB at which garbage collection is triggered. Should be ~80% of `RESOURCE_MAX_MEMORY_MB`. Range: 100–5000. |
+
+## Activity monitoring
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `INACTIVITY_THRESHOLD_DAYS` | `30` | 1–365 | Days of no activity before a chat is marked as inactive. |
+| `ACTIVITY_CHECK_INTERVAL` | `1` | 1–24 | Hours between automatic activity checks. |
+| `ENABLE_AUTO_CLEANUP` | `true` | — | Automatically marks inactive chats. Set to `false` to disable. |
+
+## Database migrations
+
+Alita uses timestamped SQL files in the `migrations/` directory as the source of truth for the database schema. Migrations are applied transactionally and tracked in a `schema_migrations` table.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTO_MIGRATE` | `false` | Automatically applies pending SQL migrations on startup. Set to `true` in Docker deployments — the Docker Compose file sets this for you. |
+| `AUTO_MIGRATE_SILENT_FAIL` | `false` | When `true`, logs migration errors but continues running instead of exiting. Only use this in development or when you are certain the schema is already correct. |
+| `MIGRATIONS_PATH` | `migrations` | Path to the directory containing SQL migration files. Override for custom deployments or testing. |
+
+<Note>
+  When you run `docker-compose up -d`, `AUTO_MIGRATE=true` is set in the Compose environment, so tables are created automatically on first startup. For non-Docker deployments, run `make psql-migrate` before the first start.
+</Note>
+
+## Local Telegram Bot API server (optional)
+
+Running a local Bot API server removes Telegram's file size limits and improves file handling speed.
+
+| Variable | Description |
+|----------|-------------|
+| `API_SERVER` | URL of your local Telegram Bot API server, e.g. `http://telegram-bot-api:8081`. |
+| `TELEGRAM_API_ID` | API ID from [my.telegram.org/apps](https://my.telegram.org/apps). Required for the local API server. |
+| `TELEGRAM_API_HASH` | API Hash from [my.telegram.org/apps](https://my.telegram.org/apps). Required for the local API server. |
+
+To start the local API server, uncomment the `telegram-bot-api` service profile in `docker-compose.yml` and start with:
+
+```bash
+docker compose --profile local-bot-api up -d
+```

@@ -1,0 +1,493 @@
+---
+title: "Configure Alita Robot group settings with admin commands"
+description: "Admin-only commands to configure greetings, flood control, blacklists, CAPTCHA, warn thresholds, group language, rules, and which commands members can use."
+---
+
+These commands let group admins configure how Alita behaves — from welcome messages and flood limits to blacklisted words, CAPTCHA challenges, warn thresholds, and which commands members can use. All commands on this page require admin rights in the group unless stated otherwise.
+
+<Note>
+  Every command on this page requires you to be a group administrator. Running a settings command as a regular member silently fails or returns a permission error.
+</Note>
+
+## Greetings
+
+Control the messages Alita sends when members join or leave the group.
+
+<AccordionGroup>
+
+<Accordion title="/setwelcome — set the welcome message">
+
+**Syntax:** `/setwelcome [text]` or reply to a message with `/setwelcome`
+
+Sets the message Alita sends when a new member joins. You can include dynamic variables that are replaced at send time:
+
+| Variable | Replaced with |
+|----------|---------------|
+| `{first}` | Member's first name |
+| `{last}` | Member's last name |
+| `{username}` | Member's @username (or name if none) |
+| `{mention}` | Inline mention link |
+| `{chatname}` | Group name |
+| `{id}` | Member's numeric user ID |
+| `{count}` | Current member count |
+
+You can also reply to a photo, video, or document to use it as the welcome media.
+
+</Accordion>
+
+<Accordion title="/welcome — check current welcome settings">
+
+**Syntax:** `/welcome` or `/welcome on` / `/welcome off`
+
+Without arguments, shows the current welcome message and whether it is enabled. Pass `on` or `off` to enable or disable welcome messages without changing the configured text.
+
+</Accordion>
+
+<Accordion title="/resetwelcome — restore default welcome">
+
+**Syntax:** `/resetwelcome`
+
+Removes the custom welcome message and reverts to Alita's default greeting.
+
+</Accordion>
+
+<Accordion title="/setgoodbye — set the goodbye message">
+
+**Syntax:** `/setgoodbye [text]` or reply to a message with `/setgoodbye`
+
+Sets the message Alita sends when a member leaves or is removed. Supports the same dynamic variables as `/setwelcome`.
+
+</Accordion>
+
+<Accordion title="/goodbye — check current goodbye settings">
+
+**Syntax:** `/goodbye` or `/goodbye on` / `/goodbye off`
+
+Without arguments, shows the current goodbye message and its status. Pass `on` or `off` to enable or disable it.
+
+</Accordion>
+
+<Accordion title="/resetgoodbye — restore default goodbye">
+
+**Syntax:** `/resetgoodbye`
+
+Removes the custom goodbye message and reverts to the default.
+
+</Accordion>
+
+<Accordion title="/cleanwelcome — auto-delete old welcome messages">
+
+**Syntax:** `/cleanwelcome on` or `/cleanwelcome off`
+
+When enabled, Alita deletes the previous welcome message each time a new member joins, keeping the chat tidy. Requires the bot to have the **Delete messages** permission.
+
+</Accordion>
+
+<Accordion title="/cleangoodbye — auto-delete old goodbye messages">
+
+**Syntax:** `/cleangoodbye on` or `/cleangoodbye off`
+
+When enabled, Alita deletes the previous goodbye message each time a member leaves.
+
+</Accordion>
+
+<Accordion title="/cleanservice — remove join and leave service messages">
+
+**Syntax:** `/cleanservice on` or `/cleanservice off`
+
+Toggles automatic deletion of Telegram's native "X joined the group" and "X left the group" service messages. Useful for busy groups where these clutter the chat.
+
+</Accordion>
+
+<Accordion title="/autoapprove — auto-approve join requests">
+
+**Syntax:** `/autoapprove on` or `/autoapprove off`
+
+When enabled, Alita automatically approves all pending join requests for groups with approval-required membership. Pass `on` to enable or `off` to disable.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Anti-flood
+
+Prevent message spam by setting a per-user message rate limit.
+
+<AccordionGroup>
+
+<Accordion title="/setflood — configure flood limit">
+
+**Syntax:** `/setflood [number]` or `/setflood off`
+
+Sets the maximum number of consecutive messages a user can send before the flood action triggers. The limit must be between **3 and 100**.
+
+```bash
+/setflood 10      # trigger after 10 consecutive messages
+/setflood off     # disable flood control
+```
+
+</Accordion>
+
+<Accordion title="/flood — view current flood settings">
+
+**Syntax:** `/flood`
+
+Shows the current flood limit and the configured action (ban, kick, or mute). If flood control is disabled, the bot says so.
+
+This command can be disabled with `/disable flood`.
+
+</Accordion>
+
+<Accordion title="/setfloodmode — choose the flood action">
+
+**Syntax:** `/setfloodmode [ban|kick|mute]`
+
+Sets what happens to a user who exceeds the flood limit:
+
+| Mode | Effect |
+|------|--------|
+| `ban` | Permanently ban the user |
+| `kick` | Remove the user (they can rejoin) |
+| `mute` | Mute the user |
+
+```bash
+/setfloodmode ban
+/setfloodmode mute
+```
+
+</Accordion>
+
+<Accordion title="/delflood — delete flood messages">
+
+**Syntax:** `/delflood on` or `/delflood off`
+
+When enabled, Alita deletes all messages that triggered the flood detection alongside applying the flood action. When disabled, only the action (ban/kick/mute) is taken and messages remain.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Blacklists
+
+Automatically moderate messages containing specific words or phrases.
+
+<AccordionGroup>
+
+<Accordion title="/addblacklist — add a blacklisted word">
+
+**Syntax:** `/addblacklist [word] [word2] ...`
+
+Adds one or more words to the group's blacklist. Any message containing a blacklisted word triggers the configured blacklist action. Words are case-insensitive and can be up to 100 characters.
+
+```bash
+/addblacklist spam
+/addblacklist scam phishing malware
+```
+
+`/blacklist` is an alias for the same command.
+
+</Accordion>
+
+<Accordion title="/blacklists — list all blacklisted words">
+
+**Syntax:** `/blacklists`
+
+Lists all words currently on the blacklist for this group.
+
+</Accordion>
+
+<Accordion title="/rmblacklist — remove a blacklisted word">
+
+**Syntax:** `/rmblacklist [word]`
+
+Removes a word from the blacklist.
+
+```bash
+/rmblacklist spam
+```
+
+</Accordion>
+
+<Accordion title="/blaction or /blacklistaction — set the blacklist action">
+
+**Syntax:** `/blaction [action]`
+
+Sets what happens when a blacklisted word is detected. Valid actions:
+
+| Action | Effect |
+|--------|--------|
+| `warn` | Issue a warning to the user |
+| `mute` | Mute the user |
+| `kick` | Kick the user from the group |
+| `ban` | Permanently ban the user |
+| `tban [time]` | Temporarily ban (e.g., `tban 1h`) |
+| `tmute [time]` | Temporarily mute (e.g., `tmute 30m`) |
+| `del` | Delete the message only |
+
+```bash
+/blaction warn
+/blaction ban
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Captcha
+
+Challenge new members with a verification step before they can send messages.
+
+<AccordionGroup>
+
+<Accordion title="/captcha — toggle captcha verification">
+
+**Syntax:** `/captcha on` or `/captcha off`
+
+Enables or disables CAPTCHA verification for new members. When enabled, new members are muted until they pass a challenge. Without arguments, shows the current status.
+
+</Accordion>
+
+<Accordion title="/captchamode — choose the captcha type">
+
+**Syntax:** `/captchamode [button|math|image]`
+
+Sets the type of CAPTCHA challenge:
+
+| Mode | Challenge |
+|------|-----------|
+| `button` | Click a button to verify |
+| `math` | Solve a simple arithmetic problem |
+| `image` | Enter characters from an image |
+
+</Accordion>
+
+<Accordion title="/captchatime — set captcha timeout">
+
+**Syntax:** `/captchatime [duration]`
+
+Sets how long a new member has to complete the CAPTCHA before being kicked. Accepts durations like `60s`, `5m`, `1h`.
+
+```bash
+/captchatime 5m
+```
+
+</Accordion>
+
+<Accordion title="/captchaaction — set the timeout action">
+
+**Syntax:** `/captchaaction [kick|ban|mute]`
+
+Sets what happens if a new member fails to complete the CAPTCHA within the timeout period.
+
+</Accordion>
+
+<Accordion title="/captchamaxattempts — set maximum attempts">
+
+**Syntax:** `/captchamaxattempts [number]`
+
+Sets how many times a new member can attempt the CAPTCHA before the timeout action triggers.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Warnings
+
+Configure how many warnings users can receive and what happens when they exceed the limit.
+
+<AccordionGroup>
+
+<Accordion title="/setwarnlimit — set the warn threshold">
+
+**Syntax:** `/setwarnlimit [number]`
+
+Sets the number of warnings a user can accumulate before the warn action triggers. Default is 3.
+
+```bash
+/setwarnlimit 5
+```
+
+</Accordion>
+
+<Accordion title="/setwarnmode — choose the warn action">
+
+**Syntax:** `/setwarnmode [kick|ban|mute]`
+
+Sets what happens when a user reaches the warn limit:
+
+| Mode | Effect |
+|------|--------|
+| `kick` | Remove the user (they can rejoin) |
+| `ban` | Permanently ban the user |
+| `mute` | Mute the user indefinitely |
+
+</Accordion>
+
+</AccordionGroup>
+
+## Language
+
+Change the language Alita uses for its responses in the group.
+
+<AccordionGroup>
+
+<Accordion title="/lang — change interface language">
+
+**Syntax:** `/lang`
+
+Displays the current language and opens an inline keyboard to select a new one. In a group, only admins can change the language. In private chat, any user can change their personal language.
+
+The following languages are supported:
+
+| Code | Language | Flag |
+|------|----------|------|
+| `en` | English | 🇺🇸 |
+| `es` | Español | 🇪🇸 |
+| `fr` | Français | 🇫🇷 |
+| `hi` | हिन्दी | 🇮🇳 |
+| `ru` | Russian | 🇷🇺 |
+| `pt` | Portuguese | 🇵🇹 |
+| `id` | Indonesian | 🇮🇩 |
+
+<Tip>
+  You can contribute translations for additional languages at [crowdin.com/project/alita_robot](https://crowdin.com/project/alita_robot).
+</Tip>
+
+</Accordion>
+
+</AccordionGroup>
+
+## Rules
+
+Set and display the group rules.
+
+<AccordionGroup>
+
+<Accordion title="/setrules — set group rules">
+
+**Syntax:** `/setrules [text]` or reply to a message with `/setrules`
+
+Sets the group rules. Members can read them with `/rules`. Supports HTML formatting.
+
+</Accordion>
+
+<Accordion title="/rules — view rules (user command)">
+
+**Syntax:** `/rules`
+
+Displays the rules. If private rules are enabled, members receive a button that opens the rules in their private messages.
+
+</Accordion>
+
+<Accordion title="/privaterules — send rules privately">
+
+**Syntax:** `/privaterules on` or `/privaterules off`
+
+When enabled, `/rules` sends each member a button to read the rules in PM instead of posting them in the group. Prevents the rules from cluttering the chat on every request.
+
+</Accordion>
+
+<Accordion title="/rulesbutton or /rulesbtn — set a custom rules button">
+
+**Syntax:** `/rulesbutton [label]` or `/rulesbtn [label]`
+
+Sets a custom label for the inline button shown when private rules are enabled.
+
+</Accordion>
+
+<Accordion title="/resetrules — clear group rules">
+
+**Syntax:** `/resetrules`
+
+Removes the configured rules. `/rules` will return an empty response until new rules are set.
+
+</Accordion>
+
+<Accordion title="/clearrulesbutton — remove custom rules button">
+
+**Syntax:** `/clearrulesbutton` or `/clearrulesbtn`
+
+Resets the rules button label back to the default.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Disabling commands
+
+Prevent specific commands from being used by regular members in the group.
+
+<AccordionGroup>
+
+<Accordion title="/disable — disable a command">
+
+**Syntax:** `/disable [command]`
+
+Prevents a specific command from working for non-admin members. For example, to stop members from using `/info`:
+
+```bash
+/disable info
+```
+
+</Accordion>
+
+<Accordion title="/enable — re-enable a command">
+
+**Syntax:** `/enable [command]`
+
+Re-enables a previously disabled command:
+
+```bash
+/enable info
+```
+
+</Accordion>
+
+<Accordion title="/disabled — list disabled commands">
+
+**Syntax:** `/disabled`
+
+Lists all commands currently disabled in this group.
+
+</Accordion>
+
+<Accordion title="/disableable — list commands that can be disabled">
+
+**Syntax:** `/disableable`
+
+Lists all commands that support being disabled. Only commands in this list can be passed to `/disable`.
+
+Commands that support disabling include: `id`, `info`, `ping`, `tr`, `stat`, `notes`, `get`, `filters`, `flood`, and others.
+
+</Accordion>
+
+<Accordion title="/disabledel — delete disabled command messages">
+
+**Syntax:** `/disabledel on` or `/disabledel off`
+
+When enabled, Alita automatically deletes messages that invoke a disabled command. When disabled, the bot ignores the command silently without removing the message.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Connections
+
+Control whether users can connect to the group remotely from their private messages.
+
+<AccordionGroup>
+
+<Accordion title="/allowconnect — toggle remote connections">
+
+**Syntax:** `/allowconnect on` or `/allowconnect off`
+
+Enables or disables the ability for users to connect to this group via `/connect` in their private messages. Without arguments, shows the current setting.
+
+```bash
+/allowconnect on
+/allowconnect off
+```
+
+</Accordion>
+
+</AccordionGroup>

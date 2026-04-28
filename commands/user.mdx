@@ -1,0 +1,302 @@
+---
+title: "Commands every group member can use in Alita Robot"
+description: "Commands any group member can run in Alita Robot — look up IDs, retrieve notes, list filters, view group rules, report messages, and manage PM connections."
+---
+
+Every member of a group where Alita is active can run these commands — no admin rights required. They cover everyday tasks: checking IDs and user info, fetching saved notes, browsing active filters, viewing the group rules, reporting misbehaviour to admins, and connecting to a group from your private messages so you can run commands on the go.
+
+## General commands
+
+<AccordionGroup>
+
+<Accordion title="/start">
+
+**Syntax:** `/start`
+
+Send this command to the bot in a private message to open the welcome screen. The bot replies with an overview, quick-navigation buttons (About, Commands Help, Language), and a link to add it to a group.
+
+Sending `/start` inside a group chat prompts you to open a private message with the bot instead.
+
+</Accordion>
+
+<Accordion title="/help">
+
+**Syntax:** `/help` or `/help [module]`
+
+Use `/help` on its own to display the full module list. Each module has a button you can tap to read its specific commands.
+
+Use `/help [module]` to jump straight to help for a named module, for example:
+
+```bash
+/help notes
+/help filters
+/help connections
+```
+
+<Tip>
+  In a group chat, `/help` sends you a button that opens the help menu in your private messages with the bot.
+</Tip>
+
+</Accordion>
+
+<Accordion title="/id">
+
+**Syntax:** `/id` or reply to a message with `/id`
+
+Returns IDs depending on context:
+
+- In a **group**, without a reply: shows your user ID and the chat ID.
+- In a **group**, replying to a message: shows the chat ID, the replied user's ID, and (if the message was forwarded) the original sender's ID or the source channel's ID. Also shows the file ID for stickers and GIFs.
+- In a **private chat**: shows your user ID.
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/info">
+
+**Syntax:** `/info` or `/info @username` or reply to a message with `/info`
+
+Displays information about a Telegram user or channel — numeric ID, display name, username, and a profile link. If you run `/info` without arguments it returns your own info.
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/ping">
+
+**Syntax:** `/ping`
+
+Measures the bot's round-trip latency to the Telegram API. The reply breaks the latency down into three figures:
+
+- **API RTT** — time for a `getMe` call (baseline network latency)
+- **Send msg** — time to deliver the initial reply
+- **Overhead** — difference between the two
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/tr">
+
+**Syntax:** `/tr [language-code] [text]` or reply to a message with `/tr [language-code]`
+
+Translates text using Google Translate with automatic source language detection. Provide the BCP-47 target language code as the first argument.
+
+```bash
+# Translate a phrase inline
+/tr es Hello, how are you?
+
+# Translate a replied-to message into French
+/tr fr
+```
+
+If you reply to a message and omit the language code, the bot defaults to English (`en`).
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/stat">
+
+**Syntax:** `/stat`
+
+Shows the approximate total number of messages sent in the current group (based on message IDs).
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/removebotkeyboard">
+
+**Syntax:** `/removebotkeyboard`
+
+Dismisses any stuck reply keyboard that a bot has attached to your chat interface. Useful if a custom keyboard persists after it should have disappeared. The bot sends a removal message, then deletes it after one second.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Notes
+
+Admins save notes with `/save`; any member can retrieve them.
+
+<AccordionGroup>
+
+<Accordion title="#notename — shorthand note retrieval">
+
+**Syntax:** `#notename`
+
+Type a `#` followed immediately by the note name to retrieve it. No slash or command needed — just send the text in the group chat.
+
+```bash
+#rules
+#welcome
+#faq
+```
+
+Append `noformat` to see the raw unrendered content (admins only):
+
+```bash
+#rules noformat
+```
+
+</Accordion>
+
+<Accordion title="/get">
+
+**Syntax:** `/get [notename]`
+
+Retrieves a saved note by name. Equivalent to `#notename` but works as an explicit command.
+
+```bash
+/get rules
+/get faq
+```
+
+Append `noformat` to see the raw markdown source (admins only):
+
+```bash
+/get rules noformat
+```
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+<Accordion title="/notes">
+
+**Syntax:** `/notes`
+
+Lists all notes saved in the current group. Admins see both public and admin-only notes; regular members see only public ones.
+
+When the group has [private notes](/commands/settings) enabled, the bot sends you a button to view the list in your private messages instead of posting it in the group.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Filters
+
+Admins configure keyword filters with `/filter`; any member can list them.
+
+<AccordionGroup>
+
+<Accordion title="/filters">
+
+**Syntax:** `/filters`
+
+Lists all active keyword filters in the current group. Each keyword is shown in a code block. When a message contains a listed keyword, the bot automatically responds with the configured reply.
+
+This command can be [disabled by admins](/commands/settings#disabling-commands).
+
+</Accordion>
+
+</AccordionGroup>
+
+## Rules
+
+<AccordionGroup>
+
+<Accordion title="/rules">
+
+**Syntax:** `/rules`
+
+Displays the group rules. If private rules are enabled, the bot sends you a button to read the rules in your private messages rather than posting them in the group.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Reporting
+
+<AccordionGroup>
+
+<Accordion title="/report or @admin mention">
+
+**Syntax:** Reply to a message with `/report` or mention `@admin` in a reply
+
+Reports the replied-to message to all group admins. Each online admin receives a notification with a link to the reported message, the reporter's name, and optional context.
+
+Both `/report` and typing `@admin` (or `@admins`) in a reply trigger the same notification. No admin receives a report for their own messages, and admins cannot report other admins.
+
+<Note>
+  This command only works as a reply. Sending `/report` without replying to a message does nothing.
+</Note>
+
+</Accordion>
+
+</AccordionGroup>
+
+## Connections
+
+The connections feature lets you run group commands from a private chat with the bot — useful when the group is muted or when you want a cleaner interface.
+
+<AccordionGroup>
+
+<Accordion title="/connect">
+
+**Syntax:** `/connect [chat_id]` (in PM) or `/connect` (in a group)
+
+Connects you to a group so you can run commands from your private messages.
+
+- **In a group**: sends a button you tap to open a PM connection to that group.
+- **In PM**: connect directly by providing the group's numeric chat ID:
+
+```bash
+/connect -1001234567890
+```
+
+<Note>
+  The group must have connections allowed. Admins control this with `/allowconnect on/off`.
+</Note>
+
+</Accordion>
+
+<Accordion title="/disconnect">
+
+**Syntax:** `/disconnect` (in PM only)
+
+Ends your active connection. Run this when you no longer need remote access, or before connecting to a different group.
+
+</Accordion>
+
+<Accordion title="/reconnect">
+
+**Syntax:** `/reconnect` (in PM only)
+
+Reconnects to the last group you were connected to. Useful if you disconnected and want to reconnect quickly without providing the chat ID again.
+
+</Accordion>
+
+<Accordion title="/connection">
+
+**Syntax:** `/connection` (in PM only)
+
+Shows which group you are currently connected to and presents a menu of available user and admin commands you can run remotely.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Formatting help
+
+<AccordionGroup>
+
+<Accordion title="/markdownhelp or /formatting">
+
+**Syntax:** `/markdownhelp` or `/formatting`
+
+Opens the formatting reference in your private messages. Covers:
+
+- **Markdown formatting** — bold, italic, code, links, and other text styles
+- **Fillings** — dynamic variables like `{first}`, `{last}`, `{username}`, `{mention}`, `{chatname}`, `{id}`
+- **Random content** — syntax for random pick lists
+
+</Accordion>
+
+</AccordionGroup>
+
+<Tip>
+  Use `/help [module]` to get the full command list for any specific feature. For example, `/help notes` shows every notes command in one place.
+</Tip>

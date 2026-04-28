@@ -1,0 +1,80 @@
+---
+title: "Alita Robot: Go-Powered Telegram Group Management Bot"
+description: "Alita is a high-performance Telegram group management bot built with Go. Moderation, filters, greetings, anti-spam, and multi-language support included."
+---
+
+Alita Robot is a modern Telegram group management bot built with Go and the [Gotgbot](https://github.com/PaulSonOfLars/gotgbot) library. It gives administrators comprehensive tools to moderate communities of any size — banning and muting users, filtering spam, welcoming new members, managing notes, and more — all backed by PostgreSQL persistence and Redis caching for Go-native speed. This page covers what Alita is, its key capabilities, and how its architecture fits together.
+
+## What Alita does
+
+Alita runs inside Telegram groups as an admin bot. Once you add it to a group and promote it to admin, it responds to commands from group admins and monitors messages according to the rules you configure. It can:
+
+- **Moderate users** — ban, mute, kick, warn, promote, and demote with configurable warn limits
+- **Filter content** — catch keyword matches with regex support and auto-respond or delete
+- **Block spam** — flood control, word and sticker blacklists, CAPTCHA verification for new members
+- **Greet members** — fully customizable welcome and goodbye messages with variable substitution and media attachments
+- **Save notes** — store formatted messages and retrieve them on demand with `/get`
+- **Manage pins** — pin and unpin messages with anti-spam protection
+- **Lock message types** — prevent links, forwards, media, and other content types from being posted
+
+## Architecture overview
+
+Alita is a single Go binary that connects to two external services:
+
+| Component | Role |
+|-----------|------|
+| **Go + Gotgbot** | Core bot runtime; handles Telegram updates via polling or webhooks |
+| **PostgreSQL** | Persistent storage for group settings, user records, filters, notes, and warnings |
+| **Redis** | Two-tier cache with TTL and stampede protection; reduces database load |
+
+The bot uses a worker-pool architecture for concurrent update processing. A configurable dispatcher handles up to 200 goroutines by default, with separate worker pools for database operations, cache operations, bulk processing, and background statistics collection. A four-layer panic recovery system (dispatcher → worker pool → decorator → handler) ensures a single bad update never crashes the bot.
+
+Updates arrive either through long polling (default, zero infrastructure needed) or webhooks (recommended for production, supports Cloudflare Tunnel).
+
+## Supported languages
+
+Alita ships with built-in translations for the following locales. Set `ENABLED_LOCALES` in your `.env` to activate them:
+
+| Code | Language |
+|------|----------|
+| `en` | English (default) |
+| `es` | Spanish |
+| `fr` | French |
+| `hi` | Hindi |
+| `ru` | Russian |
+| `pt` | Portuguese |
+| `id` | Indonesian |
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Admin and moderation" icon="gavel">
+    Ban, mute, kick, warn, promote, and demote users. Granular permission checks ensure only authorized admins can run each command.
+  </Card>
+  <Card title="Anti-spam" icon="shield-halved">
+    Configurable flood control detects message bursts. CAPTCHA verification challenges new members. Blacklists match words and stickers.
+  </Card>
+  <Card title="Filters and notes" icon="filter">
+    Keyword-triggered auto-responses with full regex support. Save and retrieve formatted notes with media attachments.
+  </Card>
+  <Card title="Greetings" icon="hand-wave">
+    Customizable welcome and goodbye messages with variable substitution (`{first}`, `{username}`, `{chatname}`) and optional media.
+  </Card>
+  <Card title="Multi-language" icon="globe">
+    YAML-based i18n with support for English, Spanish, French, Hindi, Russian, Portuguese, and Indonesian.
+  </Card>
+  <Card title="Performance monitoring" icon="chart-line">
+    Built-in resource monitoring with automatic GC triggers, background stats collection, and optional Prometheus metrics.
+  </Card>
+</CardGroup>
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Get Alita running in under 5 minutes with Docker Compose. Includes PostgreSQL and Redis — no external setup needed.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration">
+    Full reference for all environment variables: required settings, webhook mode, connection pool tuning, and monitoring options.
+  </Card>
+</CardGroup>

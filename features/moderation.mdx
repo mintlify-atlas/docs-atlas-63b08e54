@@ -1,0 +1,315 @@
+---
+title: "Moderate users in your Telegram group with Alita Robot"
+description: "Ban, mute, kick, and warn users in your Telegram group with fine-grained admin controls, timed restrictions, and a configurable multi-action warning system."
+---
+
+Alita Robot provides a comprehensive set of moderation tools that let group admins take precise action against rule-breakers. Every restriction command requires the bot to be an admin with the relevant permission (ban members, restrict members, or delete messages), and the issuing admin must hold the same permission themselves.
+
+<Note>
+  The bot must be an administrator with the appropriate permissions before any moderation command will work. For bans and kicks the bot needs **Ban Members**; for mutes and warns it needs **Restrict Members**; for purges it needs **Delete Messages**.
+</Note>
+
+## Banning users
+
+Bans permanently prevent a user from rejoining the group unless an admin explicitly unbans them. A ban confirmation message is sent with an inline **Unban** button for quick reversal.
+
+<AccordionGroup>
+  <Accordion title="/ban — Permanently ban a user">
+    Reply to a message or provide a username/user ID to ban the user from the group.
+
+    ```bash
+    /ban @username
+    /ban @username spamming links
+    ```
+
+    The bot sends a confirmation message with an inline **Unban** button. Admins and the group owner cannot be banned.
+  </Accordion>
+
+  <Accordion title="/tban — Temporarily ban a user">
+    Ban a user for a fixed duration. The time argument supports suffixes: `m` (minutes), `h` (hours), `d` (days).
+
+    ```bash
+    /tban @username 2h
+    /tban @username 1d posting spam
+    ```
+
+    The user is automatically unbanned when the duration expires.
+  </Accordion>
+
+  <Accordion title="/unban — Remove a ban">
+    Lift an existing ban to allow the user to rejoin.
+
+    ```bash
+    /unban @username
+    ```
+
+    Also accepts a reply to a forwarded message from the banned user.
+  </Accordion>
+
+  <Accordion title="/sban — Silent ban">
+    Bans the user and immediately deletes the command message, leaving no visible trace of the action in the chat.
+
+    ```bash
+    /sban @username
+    ```
+  </Accordion>
+
+  <Accordion title="/dban — Delete-and-ban">
+    Reply to a specific message to delete that message and permanently ban its sender in one step.
+
+    ```bash
+    /dban
+    /dban violating community rules
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Muting users
+
+Muting removes a user's ability to send messages without removing them from the group. An inline **Unmute** button appears on the confirmation message.
+
+<AccordionGroup>
+  <Accordion title="/mute — Permanently mute a user">
+    Restrict the user so they can no longer send messages until explicitly unmuted.
+
+    ```bash
+    /mute @username
+    /mute @username flooding the chat
+    ```
+  </Accordion>
+
+  <Accordion title="/tmute — Temporarily mute a user">
+    Mute a user for a fixed duration using the same time suffixes as `/tban`.
+
+    ```bash
+    /tmute @username 30m
+    /tmute @username 6h off-topic posting
+    ```
+  </Accordion>
+
+  <Accordion title="/unmute — Remove a mute">
+    Restore full chat permissions to a previously muted user.
+
+    ```bash
+    /unmute @username
+    ```
+  </Accordion>
+
+  <Accordion title="/smute — Silent mute">
+    Mutes the user and deletes the command message without any visible notification.
+
+    ```bash
+    /smute @username
+    ```
+  </Accordion>
+
+  <Accordion title="/dmute — Delete-and-mute">
+    Reply to a message to delete it and mute the sender simultaneously.
+
+    ```bash
+    /dmute
+    /dmute repeatedly ignoring warnings
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Kicking users
+
+A kick removes the user from the group but does not prevent them from rejoining. Internally, Alita performs a ban followed by an immediate unban.
+
+<AccordionGroup>
+  <Accordion title="/kick — Kick a user">
+    Remove the target user from the group. They may rejoin via an invite link.
+
+    ```bash
+    /kick @username
+    /kick @username breaking rule #3
+    ```
+  </Accordion>
+
+  <Accordion title="/dkick — Delete-and-kick">
+    Reply to a message to delete it and kick the sender simultaneously.
+
+    ```bash
+    /dkick
+    ```
+  </Accordion>
+
+  <Accordion title="/kickme — Self-kick">
+    Allows a non-admin user to remove themselves from the group.
+
+    ```bash
+    /kickme
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Warning system
+
+Warnings accumulate per user. When a user reaches the configured limit, the bot automatically applies the configured action (ban, kick, or mute). Warnings persist across sessions until an admin resets them.
+
+<AccordionGroup>
+  <Accordion title="/warn — Issue a warning">
+    Add one warning to a user's tally. An optional reason is logged and shown to the user.
+
+    ```bash
+    /warn @username
+    /warn @username repeated spam
+    ```
+
+    The warning message includes a **Remove Warn** button for admins and a **Rules** button if rules are configured.
+  </Accordion>
+
+  <Accordion title="/warns — Check a user's warnings">
+    Display the current warning count and all recorded reasons for a user.
+
+    ```bash
+    /warns
+    /warns @username
+    ```
+  </Accordion>
+
+  <Accordion title="/rmwarn / /unwarn — Remove the latest warning">
+    Remove the most recent warning from a user's record.
+
+    ```bash
+    /unwarn @username
+    ```
+  </Accordion>
+
+  <Accordion title="/resetwarns — Clear all warnings for a user">
+    Reset a user's entire warning history to zero.
+
+    ```bash
+    /resetwarns @username
+    ```
+  </Accordion>
+
+  <Accordion title="/resetallwarns — Clear all warnings in the chat">
+    Owner-only. Clears the warning records of every user in the group. Requires confirmation via inline keyboard.
+
+    ```bash
+    /resetallwarns
+    ```
+  </Accordion>
+
+  <Accordion title="/setwarnlimit — Set the warning limit">
+    Configure how many warnings a user can accumulate before the enforcement action triggers. Accepts values from 1 to 100 (default: 3).
+
+    ```bash
+    /setwarnlimit 5
+    ```
+  </Accordion>
+
+  <Accordion title="/setwarnmode — Set the warn action">
+    Choose what happens when the limit is reached. Available modes: `ban`, `kick`, `mute`.
+
+    ```bash
+    /setwarnmode ban
+    /setwarnmode kick
+    /setwarnmode mute
+    ```
+  </Accordion>
+
+  <Accordion title="/warnings — View current warn settings">
+    Display the active warn limit and enforcement mode for the chat.
+
+    ```bash
+    /warnings
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Promoting and demoting admins
+
+<AccordionGroup>
+  <Accordion title="/promote — Grant admin rights">
+    Promote a group member to admin. The bot mirrors its own permissions to the new admin; only the group owner or bot sudo users can grant the bot's full permission set.
+
+    ```bash
+    /promote @username
+    /promote @username Moderator
+    ```
+
+    An optional custom title (max 16 characters) can be appended. The title is set automatically on promotion.
+  </Accordion>
+
+  <Accordion title="/demote — Revoke admin rights">
+    Remove admin privileges from a user. The bot can only demote users it has previously promoted.
+
+    ```bash
+    /demote @username
+    ```
+  </Accordion>
+
+  <Accordion title="/title — Set a custom admin title">
+    Assign a custom administrator title badge to an admin (max 16 characters). Only works for admins promoted by the bot.
+
+    ```bash
+    /title @username Support Staff
+    ```
+  </Accordion>
+
+  <Accordion title="/adminlist — List all admins">
+    Display every admin in the group (bots and anonymous admins are excluded).
+
+    ```bash
+    /adminlist
+    ```
+  </Accordion>
+
+  <Accordion title="/admincache — Refresh admin cache">
+    Force a fresh reload of the admin list from Telegram's API if recent promotions or demotions are not being reflected.
+
+    ```bash
+    /admincache
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Reporting messages
+
+Any group member can alert admins to a problematic message using the report feature. Admins receive a notification with inline action buttons (warn, kick, ban, mute) to handle the report directly.
+
+```bash
+/report
+@admin
+```
+
+Both `/report` and `@admin` require a reply to the message being reported. Admins and bots cannot report messages. The `/reports on/off` command lets admins enable or disable reporting for the chat.
+
+## Purging messages
+
+<AccordionGroup>
+  <Accordion title="/purge — Delete messages from a reply to the latest">
+    Reply to a message to delete every message from that point up to and including the most recent message.
+
+    ```bash
+    /purge
+    ```
+  </Accordion>
+
+  <Accordion title="/purgeto — Delete up to a specific message">
+    Reply to the earliest message and use `/purgeto` to specify how many messages to delete going forward.
+
+    ```bash
+    /purgeto
+    ```
+  </Accordion>
+
+  <Accordion title="/purgefrom — Delete from a specific starting point">
+    Purge messages starting from the replied-to message.
+
+    ```bash
+    /purgefrom
+    ```
+  </Accordion>
+
+  <Accordion title="/del — Delete a single message">
+    Delete the specific message you reply to.
+
+    ```bash
+    /del
+    ```
+  </Accordion>
+</AccordionGroup>

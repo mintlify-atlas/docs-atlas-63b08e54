@@ -1,0 +1,337 @@
+---
+title: "Filters, notes, and pins in Alita Robot"
+description: "Automate responses with keyword filters, store reusable notes, manage pinned messages, set group rules, and back up your group configuration."
+---
+
+Alita Robot ships with a full suite of content management tools. Keyword filters auto-reply when a trigger word appears; notes store formatted content that any member can retrieve; pins keep important messages visible; and rules give newcomers a reference point. All settings can be exported to a backup file and imported into another group.
+
+<CardGroup cols={2}>
+  <Card title="Filters" icon="filter">
+    Keyword-triggered automated responses supporting text, media, and inline buttons.
+  </Card>
+  <Card title="Notes" icon="note-sticky">
+    Named, retrievable snippets of formatted text, media, or mixed content.
+  </Card>
+  <Card title="Pins" icon="thumbtack">
+    Pin or unpin messages, prevent channel re-pins, and clean linked-channel posts.
+  </Card>
+  <Card title="Rules" icon="book">
+    Set and display group rules with optional private delivery via PM.
+  </Card>
+  <Card title="Backup" icon="cloud-arrow-up">
+    Export the full group configuration to JSON and import it elsewhere.
+  </Card>
+  <Card title="Connections" icon="link">
+    Manage a group's filters, notes, and settings directly from your private messages.
+  </Card>
+</CardGroup>
+
+## Filters
+
+Filters watch every incoming message and send a predefined response whenever a trigger keyword is detected. Matching uses Aho-Corasick multi-pattern search, so many filters run simultaneously with no performance penalty. Up to 150 filters are allowed per chat.
+
+<AccordionGroup>
+  <Accordion title="/filter — Add a new filter">
+    Create a filter that responds whenever the keyword appears in a message. The response can be plain text, a media file, inline buttons, or a combination. Reply to a media message to attach it to the filter.
+
+    ```bash
+    /filter hello Hello there! Welcome to the group.
+    /filter rules
+    ```
+
+    Aliases: `/addfilter`
+
+    If a filter with the same keyword already exists, the bot will ask for confirmation before overwriting.
+  </Accordion>
+
+  <Accordion title="/filters — List all active filters">
+    Show every keyword that has an active filter in the current chat.
+
+    ```bash
+    /filters
+    ```
+  </Accordion>
+
+  <Accordion title="/stop — Remove a filter">
+    Delete the filter for the given keyword.
+
+    ```bash
+    /stop hello
+    ```
+
+    Aliases: `/rmfilter`, `/removefilter`
+  </Accordion>
+
+  <Accordion title="/stopall — Remove all filters">
+    Owner-only. Delete every filter in the chat at once. The bot asks for confirmation via inline keyboard before proceeding.
+
+    ```bash
+    /stopall
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Append `noformat` after the keyword when triggering a filter (e.g. `hello noformat`) to see the raw markup with buttons shown as text. Only admins can use the noformat shortcut.
+</Tip>
+
+## Notes
+
+Notes are named content snippets that members can retrieve on demand. They support the same formatting and media types as filters. Notes can be restricted to private-only delivery, group-only delivery, or admin-only access.
+
+<AccordionGroup>
+  <Accordion title="/save — Create or update a note">
+    Save text or media under a name. Reply to a media message to attach it to the note.
+
+    ```bash
+    /save welcome Hello and welcome!
+    /save rules
+    ```
+
+    Aliases: `/addnote`
+  </Accordion>
+
+  <Accordion title="#notename — Retrieve a note inline">
+    Type `#notename` anywhere in a message to have the bot deliver the note inline, without using a slash command.
+
+    ```bash
+    #welcome
+    #rules noformat
+    ```
+  </Accordion>
+
+  <Accordion title="/get — Retrieve a note by command">
+    Fetch a specific note by name.
+
+    ```bash
+    /get welcome
+    /get rules noformat
+    ```
+  </Accordion>
+
+  <Accordion title="/notes — List all notes">
+    Show all available notes in the chat. Admins also see admin-only notes.
+
+    ```bash
+    /notes
+    ```
+
+    Alias: `/saved`
+  </Accordion>
+
+  <Accordion title="/clear — Delete a note">
+    Remove a specific note by name.
+
+    ```bash
+    /clear welcome
+    ```
+
+    Aliases: `/rmnote`
+  </Accordion>
+
+  <Accordion title="/clearall — Delete all notes">
+    Owner-only. Remove every note in the chat. Requires confirmation via inline keyboard.
+
+    ```bash
+    /clearall
+    ```
+  </Accordion>
+
+  <Accordion title="/privnote — Toggle private note delivery">
+    When enabled, notes are sent to the requesting user's DM instead of the group.
+
+    ```bash
+    /privnote on
+    /privnote off
+    ```
+
+    Aliases: `/privatenotes`
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Notes support Markdown and HTML formatting, including bold, italic, code blocks, and inline buttons.
+</Note>
+
+## Pins
+
+The pins module handles message pinning with optional loud notifications, prevents automatic re-pins from linked channels, and can clean up channel forwarded posts.
+
+<AccordionGroup>
+  <Accordion title="/pin — Pin a message">
+    Reply to a message to pin it. By default the pin is silent (no notification). Add `notify`, `violent`, or `loud` to send a notification.
+
+    ```bash
+    /pin
+    /pin loud
+    ```
+  </Accordion>
+
+  <Accordion title="/unpin — Unpin a message">
+    Reply to a pinned message to unpin it, or run without a reply to unpin the most recently pinned message.
+
+    ```bash
+    /unpin
+    ```
+  </Accordion>
+
+  <Accordion title="/unpinall — Unpin all messages">
+    Remove every pinned message from the chat. Requires confirmation via inline keyboard.
+
+    ```bash
+    /unpinall
+    ```
+  </Accordion>
+
+  <Accordion title="/pinned — Show the current pin">
+    Display a link to the most recently pinned message with a jump button.
+
+    ```bash
+    /pinned
+    ```
+  </Accordion>
+
+  <Accordion title="/permapin — Create and pin a new message">
+    Compose a new message (with optional buttons) and pin it immediately.
+
+    ```bash
+    /permapin Check out our latest update!
+    ```
+  </Accordion>
+
+  <Accordion title="/antichannelpin — Block automatic channel re-pins">
+    When a linked channel posts a message, Telegram automatically pins it. Enable this to silently unpin those automatic pins.
+
+    ```bash
+    /antichannelpin on
+    /antichannelpin off
+    ```
+  </Accordion>
+
+  <Accordion title="/cleanlinked — Delete linked-channel posts">
+    Automatically delete messages forwarded from the linked channel into the group discussion.
+
+    ```bash
+    /cleanlinked on
+    /cleanlinked off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Rules
+
+<AccordionGroup>
+  <Accordion title="/setrules — Set group rules">
+    Set the group rules. Supports full Markdown formatting.
+
+    ```bash
+    /setrules No spam. No NSFW. Be respectful.
+    ```
+  </Accordion>
+
+  <Accordion title="/rules — Show group rules">
+    Display the current rules. If `/privaterules` is enabled the rules are sent via PM with a button in the group.
+
+    ```bash
+    /rules
+    ```
+  </Accordion>
+
+  <Accordion title="/resetrules — Delete all rules">
+    Clear the group's rules entirely.
+
+    ```bash
+    /resetrules
+    ```
+
+    Aliases: `/clearrules`
+  </Accordion>
+
+  <Accordion title="/privaterules — Toggle private rules delivery">
+    When enabled, `/rules` sends the rules to the user's DM instead of the group chat.
+
+    ```bash
+    /privaterules on
+    /privaterules off
+    ```
+  </Accordion>
+
+  <Accordion title="/rulesbutton — Customize the rules button label">
+    Change the text shown on the PM rules button (max 30 characters).
+
+    ```bash
+    /rulesbutton Read Our Rules
+    ```
+
+    Aliases: `/rulesbtn`
+  </Accordion>
+</AccordionGroup>
+
+## Backup and import
+
+The backup module lets admins export all notes, filters, and settings to a JSON file and import them into the same or a different group.
+
+<AccordionGroup>
+  <Accordion title="/export — Export group data">
+    Generate a JSON backup of the group's notes, filters, and configuration and send it as a file.
+
+    ```bash
+    /export
+    ```
+  </Accordion>
+
+  <Accordion title="/import — Import group data">
+    Reply to a previously exported backup file to restore notes, filters, and settings. The bot asks which modules to import via inline keyboard.
+
+    ```bash
+    /import
+    ```
+  </Accordion>
+
+  <Accordion title="/reset — Reset imported data">
+    Remove previously imported data for specific modules.
+
+    ```bash
+    /reset
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Connections
+
+Connections let an admin manage a group's notes, filters, and settings from their private chat with the bot, without having to visit the group.
+
+<AccordionGroup>
+  <Accordion title="/connect — Connect to a group">
+    Link your PM session to a group by its ID. Once connected, admin commands issued in PM are applied to that group.
+
+    ```bash
+    /connect -1001234567890
+    ```
+  </Accordion>
+
+  <Accordion title="/disconnect — Disconnect from a group">
+    End the current PM connection.
+
+    ```bash
+    /disconnect
+    ```
+  </Accordion>
+
+  <Accordion title="/connection — View connection status">
+    Show which group you are currently connected to and display available commands.
+
+    ```bash
+    /connection
+    ```
+  </Accordion>
+
+  <Accordion title="/allowconnect — Control who can connect">
+    Toggle whether non-owner admins are allowed to connect to the group from PM.
+
+    ```bash
+    /allowconnect on
+    /allowconnect off
+    ```
+  </Accordion>
+</AccordionGroup>

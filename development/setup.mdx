@@ -1,0 +1,223 @@
+---
+title: "Set up a local Alita Robot development environment"
+description: "Install Go, PostgreSQL, and Redis, clone the repository, run database migrations, and start the bot locally with hot reload in under 10 minutes."
+---
+
+Setting up Alita Robot locally gives you a full development environment with hot reload, database migrations, and pre-commit hooks. The bot requires Go 1.26+, PostgreSQL 14+, and Redis 6+ — all three can be running in minutes using Docker.
+
+## Prerequisites
+
+Before you begin, install the following tools:
+
+| Tool | Minimum version | Notes |
+|------|----------------|-------|
+| Go | 1.26 | [go.dev/dl](https://go.dev/dl) |
+| PostgreSQL | 14 | Required for persistent state |
+| Redis | 6 | Required for caching |
+| Make | any | Optional but recommended |
+| Git | any | For cloning the repository |
+
+<Tip>
+  For local development, the fastest way to get PostgreSQL and Redis running is with Docker. You don't need a full install on your machine:
+
+  ```bash
+  docker run -d --name postgres \
+    -e POSTGRES_PASSWORD=password \
+    -e POSTGRES_DB=alita_robot \
+    -p 5432:5432 postgres:14
+
+  docker run -d --name redis \
+    -p 6379:6379 redis:7-alpine
+  ```
+
+  Both containers start immediately and persist data between restarts unless explicitly removed.
+</Tip>
+
+## Setup steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/divkix/Alita_Robot.git
+    cd Alita_Robot
+    ```
+  </Step>
+
+  <Step title="Install Go dependencies">
+    Download all Go module dependencies declared in `go.mod`:
+
+    ```bash
+    go mod download
+    ```
+
+    The project uses a number of key dependencies including `gotgbot/v2` (Telegram bot framework), `gorm` (PostgreSQL ORM), `go-redis` (Redis client), and `gocache` (cache abstraction layer).
+  </Step>
+
+  <Step title="Configure your environment">
+    Copy the sample environment file and fill in the required values:
+
+    ```bash
+    cp sample.env .env
+    ```
+
+    At minimum, set these five variables in `.env`:
+
+    ```bash
+    # Required
+    BOT_TOKEN=123456:ABC-DEF...        # From @BotFather on Telegram
+    OWNER_ID=123456789                 # Your Telegram user ID
+    MESSAGE_DUMP=-100123456789         # A log channel ID (must start with -100)
+    DATABASE_URL=postgres://postgres:password@localhost:5432/alita_robot?sslmode=disable
+    REDIS_ADDRESS=localhost:6379
+
+    # Recommended for development
+    DEBUG=true
+    AUTO_MIGRATE=false                 # Use make psql-migrate instead
+    DROP_PENDING_UPDATES=true
+    ```
+
+    <Note>
+      For local development with the Docker containers above, `sslmode=disable` is required. Production deployments should use `sslmode=require` or stronger.
+    </Note>
+  </Step>
+
+  <Step title="Run database migrations">
+    Migrations are SQL files in the `migrations/` directory and are the source of truth for the schema. Run them before starting the bot for the first time.
+
+    Export your database connection details, then apply all pending migrations:
+
+    ```bash
+    export PSQL_DB_HOST="localhost"
+    export PSQL_DB_NAME="alita_robot"
+    export PSQL_DB_USER="postgres"
+    export PSQL_DB_PASSWORD="password"
+    # Optional overrides:
+    # export PSQL_DB_PORT="5432"        # default: 5432
+    # export PSQL_DB_SSLMODE="disable"  # default: require
+
+    make psql-migrate
+    ```
+
+    To check which migrations have been applied:
+
+    ```bash
+    make psql-status
+    ```
+
+    Migrations are tracked in the `schema_migrations` table and run transactionally and idempotently — re-running is safe.
+
+    <Note>
+      Supabase-specific SQL (`GRANT`, `RLS`) is automatically cleaned out at runtime, so the same migration files work on both Supabase-hosted and plain PostgreSQL instances.
+    </Note>
+  </Step>
+
+  <Step title="Build the bot">
+    Use `make build` for a full multi-platform release build via GoReleaser, or build a local binary directly with `go build`:
+
+    <CodeGroup>
+      ```bash make
+      make build
+      ```
+
+      ```bash go build
+      go build -o alita_robot .
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Run the bot">
+    Start the bot in development mode:
+
+    ```bash
+    make run
+    ```
+
+    This runs `go run main.go` directly. The bot will start in polling mode and log output to stdout.
+  </Step>
+
+  <Step title="Enable hot reload (optional)">
+    For a faster feedback loop during development, use [air](https://github.com/cosmtrek/air) to automatically rebuild and restart the bot when you save a file:
+
+    ```bash
+    go install github.com/cosmtrek/air@latest
+    air
+    ```
+
+    Air reads its configuration from `.air.toml` if present, otherwise uses sensible defaults.
+  </Step>
+
+  <Step title="Install pre-commit hooks (recommended)">
+    Pre-commit hooks run `golangci-lint`, `gofmt`, and `go mod tidy` automatically before every commit, catching issues before they reach CI.
+
+    ```bash
+    pip install pre-commit
+    pre-commit install
+    ```
+
+    The following checks run on every commit:
+
+    | Hook | Purpose |
+    |------|---------|
+    | `trailing-whitespace` | Remove trailing whitespace |
+    | `end-of-file-fixer` | Ensure files end with a newline |
+    | `check-yaml` | Validate YAML files |
+    | `check-added-large-files` | Block files larger than 1000 KB |
+    | `check-merge-conflict` | Detect leftover merge conflict markers |
+    | `detect-private-key` | Prevent accidental secret commits |
+    | `golangci-lint` | Full linter suite (5 minute timeout) |
+    | `gofmt` | Format Go source files |
+    | `go mod tidy` | Keep `go.mod` and `go.sum` clean |
+  </Step>
+</Steps>
+
+## Available Make targets
+
+All development workflows are available as Make targets:
+
+| Target | Description |
+|--------|-------------|
+| `make run` | Run the bot locally (`go run main.go`) |
+| `make build` | Multi-platform release build via GoReleaser |
+| `make lint` | Run `golangci-lint` code quality checks |
+| `make test` | Run all tests with race detection and coverage |
+| `make tidy` | Run `go mod tidy` |
+| `make vendor` | Vendor all dependencies (`go mod vendor`) |
+| `make psql-migrate` | Apply all pending SQL migrations |
+| `make psql-status` | Show which migrations have been applied |
+| `make psql-prepare` | Generate cleaned SQL into `tmp/migrations_cleaned` |
+| `make psql-reset` | Drop all tables — destructive, requires confirmation |
+| `make check-translations` | Detect missing keys across locale files |
+| `make generate-docs` | Generate documentation site content |
+| `make docs-dev` | Start the Astro docs dev server (requires `bun`) |
+
+## Running a single test
+
+To run a specific test function or all tests in a package:
+
+```bash
+# Run a specific test by name
+go test -v -run TestFunctionName ./alita/db
+
+# Run tests matching a pattern
+go test -v -run "^TestXxx$" ./alita/db
+
+# Run all tests in a package with a timeout
+go test -v -count=1 -timeout 10m ./alita/db
+```
+
+## Environment variable reference
+
+See `sample.env` in the repository root for the complete list of configuration options, including database connection pool tuning, worker pool sizes, monitoring thresholds, and OpenTelemetry tracing settings. Key variables for local development:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BOT_TOKEN` | — | Telegram bot token from @BotFather |
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `REDIS_ADDRESS` | — | Redis address (`host:port`) |
+| `OWNER_ID` | — | Your Telegram user ID |
+| `MESSAGE_DUMP` | — | Log channel ID (must start with `-100`) |
+| `DEBUG` | `false` | Enable verbose logging |
+| `AUTO_MIGRATE` | `false` | Apply migrations automatically on startup |
+| `HTTP_PORT` | `8080` | Port for health, metrics, and webhook endpoints |
+| `USE_WEBHOOKS` | `false` | Enable webhook mode (use polling for local dev) |
+| `ENABLE_PPROF` | `false` | Enable `pprof` profiling endpoints (disable in production) |

@@ -1,0 +1,131 @@
+---
+title: "Lock and restrict message types with Alita Robot"
+description: "Prevent specific content types in your group using Alita Robot's lock system — block stickers, URLs, forwarded messages, bots, polls, and more."
+---
+
+The locks system lets admins restrict what types of content members can send in a group. When a lock is active, any message matching that type is automatically deleted by the bot. Locks are split into two categories: **permission locks** that target specific message formats (stickers, URLs, photos, etc.) and **restriction locks** that target broader sending capabilities (all messages, media, previews). Admins are never affected by active locks.
+
+<Note>
+  The bot must be an admin with the **Delete messages** permission for locks to take effect. Without it the bot can record lock settings but cannot enforce them.
+</Note>
+
+## Commands
+
+<AccordionGroup>
+  <Accordion title="/lock [type ...]">
+    **Permission required:** Admin
+
+    Enables one or more lock types in the group. Multiple types can be locked in a single command. Once a lock is set, matching messages from non-admin members are deleted automatically.
+
+    ```bash
+    /lock sticker
+    /lock url forward
+    ```
+  </Accordion>
+
+  <Accordion title="/unlock [type ...]">
+    **Permission required:** Admin
+
+    Disables one or more previously set lock types. Multiple types can be unlocked at once.
+
+    ```bash
+    /unlock sticker
+    /unlock url forward gif
+    ```
+  </Accordion>
+
+  <Accordion title="/locks">
+    **Permission required:** Admin
+
+    Displays a list of all lock types along with their current enabled/disabled state for the group.
+
+    ```bash
+    /locks
+    ```
+  </Accordion>
+
+  <Accordion title="/locktypes">
+    Lists every lock type the bot supports. Any member can run this command.
+
+    Can be disabled by admins with `/disable locktypes`.
+
+    ```bash
+    /locktypes
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Permission lock types
+
+These locks target specific message formats. When enabled, matching messages from non-admin members are deleted.
+
+| Lock type | What it blocks |
+|---|---|
+| `sticker` | Sticker messages |
+| `gif` | Animated GIF / animation messages |
+| `photo` | Image/photo messages |
+| `video` | Video messages |
+| `videonote` | Round video note (video circle) messages |
+| `voice` | Voice message recordings |
+| `audio` | Audio file messages |
+| `document` | File/document attachments (excluding animations) |
+| `contact` | Shared contact cards |
+| `location` | Shared location messages |
+| `game` | Telegram game messages |
+| `url` | Messages containing URLs or hyperlinked text |
+| `forward` | Forwarded messages |
+| `bots` | Prevents non-admin users from adding bots to the group; auto-bans any bot added by a non-admin |
+| `rtl` | Messages containing Arabic script characters (right-to-left text) |
+| `anonchannel` | Messages sent by anonymous channels or linked channel accounts |
+
+### Example
+
+Lock stickers and forwarded messages:
+
+```bash
+/lock sticker forward
+```
+
+Unlock stickers only:
+
+```bash
+/unlock sticker
+```
+
+## Restriction lock types
+
+Restriction locks apply broader chat permission constraints. When enabled, messages from non-admin members that match the category are deleted.
+
+| Lock type | What it blocks |
+|---|---|
+| `messages` | All text messages, contacts, locations, media, and other message types |
+| `comments` | Messages sent by non-members in the discussion chat (external commenters) |
+| `media` | Audio, documents, video notes, videos, voice messages, and photos |
+| `other` | Games, stickers, and animated GIFs |
+| `previews` | Messages that contain a URL with a link preview |
+| `all` | Every message type — effectively silences all non-admin members |
+
+<Warning>
+  Enabling `all` or `messages` will prevent all non-admin members from sending any messages. Use with caution and unlock promptly when no longer needed.
+</Warning>
+
+## How locks work
+
+<Steps>
+  <Step title="Admin sets a lock">
+    An admin runs `/lock sticker`. The bot stores this setting in the database for the group.
+  </Step>
+  <Step title="Member sends a locked type">
+    A non-admin member sends a sticker. The bot's message watcher checks each incoming message against active locks.
+  </Step>
+  <Step title="Bot deletes the message">
+    The sticker is deleted automatically. No warning message is sent by default — the deletion itself is the signal.
+  </Step>
+  <Step title="Admin can unlock at any time">
+    An admin runs `/unlock sticker` to restore the permission, or `/locks` to review all current settings.
+  </Step>
+</Steps>
+
+<Tip>
+  Combine locks for common anti-spam setups. For example, `/lock url forward anonchannel` blocks the three most common spam vectors without restricting normal conversation.
+</Tip>

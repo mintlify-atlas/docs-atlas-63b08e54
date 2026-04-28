@@ -1,0 +1,378 @@
+---
+title: "Admin and group management commands in Alita Robot"
+description: "Manage admin privileges, group settings, rules, pins, backups, and abuse reports in your Telegram group using Alita Robot's full admin command set."
+---
+
+Alita Robot's admin module gives group administrators precise control over privilege management, group appearance, content rules, message pins, data backups, and abuse reporting. All commands in this section require the issuing user to hold admin status in the group, and the bot itself must be an admin with the relevant permissions.
+
+## Privilege management
+
+<AccordionGroup>
+  <Accordion title="/promote [user] [custom title]">
+    **Permission required:** Admin with "Add new admins" right
+
+    Promotes a regular member to admin. The bot grants the new admin a subset of its own permissions mirrored from the promoter's rights. Group owners and sudo/dev team members can grant the bot's full permission set regardless.
+
+    An optional custom title (up to 16 characters) can be appended. Titles longer than 16 characters are silently truncated with a notice.
+
+    ```bash
+    /promote @username
+    /promote @username Support Staff
+    ```
+  </Accordion>
+
+  <Accordion title="/demote [user]">
+    **Permission required:** Admin with "Add new admins" right
+
+    Strips all admin permissions from a user previously promoted by the bot. The bot can only demote admins it promoted itself — it cannot demote users promoted via Telegram's native interface.
+
+    ```bash
+    /demote @username
+    ```
+  </Accordion>
+
+  <Accordion title="/title [user] [title]">
+    **Permission required:** Admin with "Add new admins" right
+
+    Sets a custom administrator title on a user the bot has promoted. The title must not be empty and is capped at 16 characters.
+
+    ```bash
+    /title @username Head Mod
+    ```
+  </Accordion>
+
+  <Accordion title="/adminlist">
+    Lists all non-bot, non-anonymous admins in the group. The response is sourced from the admin cache and notes whether the list is fresh or cached.
+
+    Any member can use this command. It can be disabled by admins with `/disable adminlist`.
+
+    ```bash
+    /adminlist
+    ```
+  </Accordion>
+
+  <Accordion title="/admincache">
+    **Permission required:** Admin
+
+    Forces a reload of the admin permission cache from Telegram's API. Useful immediately after promoting or demoting admins.
+
+    ```bash
+    /admincache
+    ```
+  </Accordion>
+
+  <Accordion title="/clearadmincache">
+    **Permission required:** Admin
+
+    Deletes the cached admin list entirely, requiring a fresh fetch on the next cache-dependent operation.
+
+    ```bash
+    /clearadmincache
+    ```
+  </Accordion>
+
+  <Accordion title="/anonadmin [on|off]">
+    **Permission required:** Group owner (to change), any admin (to view)
+
+    Toggles anonymous admin mode. When enabled, actions from anonymous admins are processed without requiring identity confirmation. With no argument, reports the current setting.
+
+    ```bash
+    /anonadmin
+    /anonadmin on
+    /anonadmin off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Group settings
+
+<AccordionGroup>
+  <Accordion title="/invitelink">
+    **Permission required:** Admin with "Invite users" right
+
+    Returns the group's invite link. For public groups this is the public `@username` link; for private groups the bot generates a full invite URL.
+
+    ```bash
+    /invitelink
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Rules
+
+<AccordionGroup>
+  <Accordion title="/setrules [text]">
+    **Permission required:** Admin
+
+    Sets the group rules. Supports Telegram formatting. Any previously set rules are replaced.
+
+    ```bash
+    /setrules Be respectful. No spam.
+    ```
+  </Accordion>
+
+  <Accordion title="/rules">
+    Displays the group rules. If private rules mode is enabled, the rules are sent to the user in a private message instead of the group.
+
+    Can be disabled by admins with `/disable rules`.
+
+    ```bash
+    /rules
+    ```
+  </Accordion>
+
+  <Accordion title="/resetrules · /clearrules">
+    **Permission required:** Admin
+
+    Deletes all currently set rules for the group.
+
+    ```bash
+    /resetrules
+    /clearrules
+    ```
+  </Accordion>
+
+  <Accordion title="/privaterules [on|off]">
+    **Permission required:** Admin
+
+    Toggles whether `/rules` sends the rules privately (via bot PM) or posts them in the group. With no argument, shows the current mode.
+
+    ```bash
+    /privaterules on
+    /privaterules off
+    ```
+  </Accordion>
+
+  <Accordion title="/rulesbutton · /rulesbtn [text]">
+    **Permission required:** Admin
+
+    Sets custom button text shown alongside the rules. Useful when rules are sent privately and you want a labelled button.
+
+    ```bash
+    /rulesbutton View Rules
+    ```
+  </Accordion>
+
+  <Accordion title="/clearrulesbutton · /resetrulesbutton">
+    **Permission required:** Admin
+
+    Removes any custom rules button text, reverting to the default label.
+
+    ```bash
+    /clearrulesbutton
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Backup and restore
+
+<AccordionGroup>
+  <Accordion title="/export">
+    **Permission required:** Admin
+
+    Exports the group's current configuration (filters, greetings, rules, notes, and similar data) as a JSON file sent to the admin's private messages.
+
+    ```bash
+    /export
+    ```
+
+    <Note>
+      The bot must be able to message you privately. Start a conversation with the bot before using `/export`.
+    </Note>
+  </Accordion>
+
+  <Accordion title="/import">
+    **Permission required:** Admin
+
+    Imports a previously exported backup file. Reply to or upload a `.json` backup file, then follow the inline confirmation prompt to choose which modules to restore.
+
+    ```bash
+    /import
+    ```
+
+    <Warning>
+      Importing a backup overwrites existing settings for the selected modules. Make an export first if you want to preserve current data.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="/reset">
+    **Permission required:** Admin
+
+    Resets selected modules to their default state. The bot presents an inline keyboard letting you choose which modules to reset.
+
+    ```bash
+    /reset
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Pins
+
+<AccordionGroup>
+  <Accordion title="/pin [notify|loud|violent]">
+    **Permission required:** Admin with "Pin messages" right
+
+    Pins the message you are replying to. By default the pin is silent (no notification). Pass `notify`, `loud`, or `violent` as an argument to send a notification to all members.
+
+    ```bash
+    /pin
+    /pin loud
+    ```
+  </Accordion>
+
+  <Accordion title="/unpin">
+    **Permission required:** Admin with "Pin messages" right
+
+    Unpins a specific message (when replying to it) or unpins the most recently pinned message if used without a reply.
+
+    ```bash
+    /unpin
+    ```
+  </Accordion>
+
+  <Accordion title="/unpinall">
+    **Permission required:** Admin with "Pin messages" right
+
+    Presents a confirmation dialog to unpin every pinned message in the group at once.
+
+    ```bash
+    /unpinall
+    ```
+  </Accordion>
+
+  <Accordion title="/pinned">
+    Shows a link to the currently pinned message with a button to jump directly to it. Requires the bot to be an admin.
+
+    ```bash
+    /pinned
+    ```
+  </Accordion>
+
+  <Accordion title="/permapin [text]">
+    **Permission required:** Admin with "Pin messages" right
+
+    Creates a new message from provided text (or from a replied-to message) and immediately pins it. Supports inline buttons using Telegram button syntax.
+
+    ```bash
+    /permapin Welcome to the group!
+    ```
+  </Accordion>
+
+  <Accordion title="/antichannelpin [on|off]">
+    **Permission required:** Admin
+
+    When enabled, automatically unpins any message pinned by a linked channel. With no argument, shows the current status.
+
+    ```bash
+    /antichannelpin on
+    /antichannelpin off
+    ```
+  </Accordion>
+
+  <Accordion title="/cleanlinked [on|off]">
+    **Permission required:** Admin
+
+    When enabled, automatically deletes messages forwarded from a linked channel into the group's discussion. With no argument, shows the current status.
+
+    ```bash
+    /cleanlinked on
+    /cleanlinked off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Reports
+
+<AccordionGroup>
+  <Accordion title="/report">
+    **Any member** — reply to a message to flag it for admin review. The bot pings all admins who have notifications enabled and presents inline action buttons (kick, ban, delete message, or mark resolved).
+
+    Members on the group's report block list are silently ignored. Admins cannot use this command to report other users.
+
+    Can be disabled by admins with `/disable report`.
+
+    ```bash
+    /report
+    ```
+  </Accordion>
+
+  <Accordion title="@admin">
+    Mentioning `@admin` or `@admins` in any message triggers the same report flow as `/report`. The mentioned text must appear in a reply to the offending message.
+
+    ```bash
+    @admin please check this message
+    ```
+  </Accordion>
+
+  <Accordion title="/reports [on|off|block|unblock|showblocklist]">
+    **Permission required:** Admin (to change group settings)
+
+    Manages report settings for the group or for your own notification preferences (when used in a private chat with the bot).
+
+    | Argument | Effect |
+    |---|---|
+    | `on` | Enable reports in the group (or enable your personal notifications) |
+    | `off` | Disable reports in the group (or disable your personal notifications) |
+    | `block` | Block the replied-to user from submitting reports |
+    | `unblock` | Remove a block from the replied-to user |
+    | `showblocklist` | List all users blocked from reporting |
+
+    ```bash
+    /reports on
+    /reports block
+    /reports showblocklist
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Command management
+
+<AccordionGroup>
+  <Accordion title="/disable [command ...]">
+    **Permission required:** Admin
+
+    Disables one or more bot commands in the current group. Disabled commands are ignored when members use them. Multiple commands can be disabled in a single call.
+
+    ```bash
+    /disable warns
+    /disable rules adminlist
+    ```
+  </Accordion>
+
+  <Accordion title="/enable [command ...]">
+    **Permission required:** Admin
+
+    Re-enables one or more previously disabled commands.
+
+    ```bash
+    /enable warns
+    ```
+  </Accordion>
+
+  <Accordion title="/disabled">
+    Lists all commands currently disabled in the group.
+
+    ```bash
+    /disabled
+    ```
+  </Accordion>
+
+  <Accordion title="/disableable">
+    Lists every command that supports being disabled. Any user can run this.
+
+    ```bash
+    /disableable
+    ```
+  </Accordion>
+
+  <Accordion title="/disabledel [on|off]">
+    **Permission required:** Admin
+
+    Controls whether the bot automatically deletes messages that trigger a disabled command. With no argument, shows the current setting.
+
+    ```bash
+    /disabledel on
+    /disabledel off
+    ```
+  </Accordion>
+</AccordionGroup>

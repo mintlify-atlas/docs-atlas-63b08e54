@@ -1,0 +1,365 @@
+---
+title: "How to contribute code and features to Alita Robot"
+description: "Fork the repo, follow the conventional commit format, run lint and tests, and submit a pull request — with guidance on adding modules and translations."
+---
+
+Alita Robot welcomes contributions of all kinds — bug fixes, new features, performance improvements, and documentation. The project follows conventional commits, enforces code quality via pre-commit hooks, and requires translations for any user-facing text. This guide walks through the full process from fork to merged PR.
+
+## Before you start
+
+Make sure your local development environment is set up before contributing. Follow the [local setup guide](/development/setup) to install Go, configure PostgreSQL and Redis, run migrations, and install pre-commit hooks.
+
+## Contribution workflow
+
+<Steps>
+  <Step title="Fork and clone">
+    Fork the repository on GitHub, then clone your fork:
+
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/Alita_Robot.git
+    cd Alita_Robot
+    ```
+
+    Add the upstream remote so you can keep your fork in sync:
+
+    ```bash
+    git remote add upstream https://github.com/divkix/Alita_Robot.git
+    ```
+  </Step>
+
+  <Step title="Create a branch">
+    Create a branch from `main` with a descriptive name:
+
+    ```bash
+    git checkout -b feat/your-feature-name
+    # or
+    git checkout -b fix/issue-description
+    ```
+
+    Use the same prefix as the commit type you plan to use (e.g., `feat/`, `fix/`, `docs/`).
+  </Step>
+
+  <Step title="Make your changes">
+    Implement your changes. If you're adding a new module, follow the five-step module creation process described in the [architecture guide](/development/architecture#adding-a-new-module).
+
+    Keep changes focused on a single concern per PR. Unrelated fixes should go in separate branches.
+  </Step>
+
+  <Step title="Run lint and tests">
+    Before committing, verify your changes pass all quality checks:
+
+    ```bash
+    # Format code (also run automatically by pre-commit)
+    gofmt -l -w .
+
+    # Run linters
+    make lint
+
+    # Run all tests with race detection and coverage
+    make test
+    ```
+
+    Fix all lint errors before proceeding. The CI pipeline runs the same checks and will block your PR if they fail.
+  </Step>
+
+  <Step title="Commit with conventional commits">
+    Write commit messages that follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+    ```bash
+    git commit -m "feat: add captcha verification for new members"
+    git commit -m "fix: handle nil sender in channel message handler"
+    git commit -m "perf: replace linear scan with Aho-Corasick in blacklist"
+    ```
+
+    See the commit type reference below for the full list of prefixes.
+  </Step>
+
+  <Step title="Push and open a pull request">
+    Push your branch and open a pull request against `main`:
+
+    ```bash
+    git push origin feat/your-feature-name
+    ```
+
+    In the PR description:
+    - Link any related issues with `Closes #123` or `Fixes #123`
+    - Describe what changed and why
+    - Note any migrations, new environment variables, or breaking changes
+  </Step>
+</Steps>
+
+## Commit message format
+
+The project uses [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must start with one of these type prefixes:
+
+| Type | When to use | Example |
+|------|-------------|---------|
+| `feat:` | New feature or capability | `feat: add /captcha command` |
+| `fix:` | Bug fix | `fix: correct warn count after unban` |
+| `docs:` | Documentation changes only | `docs: update webhook setup guide` |
+| `refactor:` | Code restructuring, no behavior change | `refactor: consolidate greeting handlers` |
+| `perf:` | Performance improvement | `perf: optimize critical loops for 60-95% gains` |
+| `test:` | Adding or updating tests | `test: add table-driven tests for GetUser` |
+| `chore:` | Maintenance tasks | `chore: update golangci-lint config` |
+| `deps:` | Dependency updates | `deps: bump gotgbot to rc.34` |
+
+Scopes are optional but helpful for large modules: `feat(i18n):`, `fix(filters):`, `perf(db):`.
+
+**Examples from project history:**
+```
+feat(i18n): add Russian, Portuguese, and Indonesian locales
+fix: use process start time for /health uptime
+refactor: Phase 1 code simplification - consolidate packages
+perf: optimize critical loops for 60-95% performance gains
+```
+
+## Code quality requirements
+
+All code must pass the following checks before a PR can be merged:
+
+<AccordionGroup>
+  <Accordion title="Formatting and linting">
+    **gofmt** is enforced via pre-commit hooks. Run it manually with:
+
+    ```bash
+    gofmt -l -w .
+    ```
+
+    **golangci-lint** runs a comprehensive set of linters. Install it from [golangci-lint.run](https://golangci-lint.run/usage/install/) and run:
+
+    ```bash
+    make lint
+    ```
+
+    Keep lines under 100 characters where reasonable. Comments must be full sentences ending with a period, starting with the function or type name: `// GetUser retrieves a user by ID.`
+  </Accordion>
+
+  <Accordion title="Import ordering">
+    Imports must be grouped in three sections separated by blank lines: standard library, third-party, then internal packages:
+
+    ```go
+    import (
+        "context"
+        "fmt"
+
+        "github.com/PaulSonOfLars/gotgbot/v2"
+        log "github.com/sirupsen/logrus"
+        "gorm.io/gorm"
+
+        "github.com/divkix/Alita_Robot/alita/db"
+        "github.com/divkix/Alita_Robot/alita/i18n"
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Error handling rules">
+    Never ignore database errors with `_`. Unchecked errors from DB calls return nil structs that cause panics when their fields are accessed:
+
+    ```go
+    // Wrong — ignores the error
+    user, _ := db.GetUser(userID)
+
+    // Correct — checks and handles the error
+    user, err := db.GetUser(userID)
+    if err != nil {
+        return fmt.Errorf("GetUser(%d): %w", userID, err)
+    }
+    ```
+
+    Wrap errors with context using `errors.Wrapf` from `alita/utils/errors/`. Use `defer error_handling.RecoverFromPanic("context", "func")` in handlers that perform complex operations.
+  </Accordion>
+
+  <Accordion title="Database and cache patterns">
+    Every DB write function must invalidate the corresponding cache key. This is a hard rule — stale cache reads are difficult to debug:
+
+    ```go
+    func UpdateChatSettings(chatID int64, updates map[string]any) error {
+        err := db.UpdateRecord(&ChatSettings{}, ChatSettings{ChatId: chatID}, updates)
+        if err != nil {
+            return err
+        }
+        // Always invalidate after writes
+        cache.Marshal.Delete(ctx, fmt.Sprintf("alita:chatSettings:%d", chatID))
+        return nil
+    }
+    ```
+
+    Use the surrogate key pattern: auto-increment `id` as PK, external IDs as unique constraints. Add composite indexes for frequent query patterns on `(user_id, chat_id)`.
+  </Accordion>
+</AccordionGroup>
+
+### Code quality checklist
+
+Before opening a PR, verify each item:
+
+- [ ] `make lint` passes with no errors
+- [ ] `make test` passes with race detection enabled
+- [ ] `gofmt -l .` outputs no files (all files are formatted)
+- [ ] All database errors are checked (no `_ =` on DB calls)
+- [ ] Cache is invalidated after every write that affects cached data
+- [ ] New commands are registered with `helpers.AddCmdToDisableable()` if appropriate
+- [ ] No secrets, `.env` files, or credentials committed
+
+## Adding a new module
+
+Follow these five steps when adding a new feature module. Each step is required — skipping any one will result in broken behavior or CI failures.
+
+<Steps>
+  <Step title="Create DB operations">
+    Add a new file `alita/db/your_module_db.go` with domain-specific `Get*`, `Add*`, `Update*`, and `Delete*` functions. Use the shared `CreateRecord`, `UpdateRecord`, `GetRecord`, and `GetRecords` helpers from `alita/db/db.go`.
+
+    Add a GORM model struct with the surrogate key pattern (auto-increment `id` as PK):
+
+    ```go
+    type YourModuleSettings struct {
+        ID        uint      `gorm:"primaryKey;autoIncrement"`
+        ChatId    int64     `gorm:"column:chat_id;uniqueIndex;not null"`
+        // ... your fields
+        CreatedAt time.Time `gorm:"column:created_at"`
+        UpdatedAt time.Time `gorm:"column:updated_at"`
+    }
+
+    func (YourModuleSettings) TableName() string {
+        return "your_module_settings"
+    }
+    ```
+  </Step>
+
+  <Step title="Create a SQL migration">
+    Add a timestamped SQL file to `migrations/` for the schema changes:
+
+    ```
+    migrations/20260428000000_add_your_module_table.sql
+    ```
+
+    Write the migration to be idempotent (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`).
+  </Step>
+
+  <Step title="Implement handlers">
+    Create `alita/modules/your_module.go`. Define a `moduleStruct` instance, write handler methods with value receivers, and return `ext.EndGroups` or `ext.ContinueGroups`:
+
+    ```go
+    var YourModule = moduleStruct{
+        moduleName:   "YourModule",
+        handlerGroup: moduleGroup,
+    }
+
+    func (YourModule) yourCommand(b *gotgbot.Bot, ctx *ext.Context) error {
+        // Require a group chat
+        if !chat_status.RequireGroup(b, ctx) {
+            return ext.EndGroups
+        }
+        // ... handler logic
+        return ext.EndGroups
+    }
+
+    func LoadYourModule(dispatcher *ext.Dispatcher) {
+        dispatcher.AddHandler(handlers.NewCommand("yourcommand", YourModule.yourCommand))
+        helpers.AddCmdToDisableable("yourcommand")
+        HelpModule.AbleMap.Store(YourModule.moduleName, true)
+    }
+    ```
+  </Step>
+
+  <Step title="Register in LoadModules">
+    Open `alita/main.go` and add a call to your load function inside `LoadModules()`:
+
+    ```go
+    func LoadModules(dispatcher *ext.Dispatcher) {
+        // ... existing modules
+        modules.LoadYourModule(dispatcher)
+        // Help module is deferred and always loads last
+    }
+    ```
+
+    Load order matters. Place your module before `defer modules.LoadHelp(dispatcher)`.
+  </Step>
+
+  <Step title="Add translations">
+    Add translation keys to **every** locale file in `locales/`:
+
+    ```
+    locales/en.yaml
+    locales/es.yaml
+    locales/fr.yaml
+    locales/hi.yaml
+    locales/ru.yaml
+    locales/pt.yaml
+    locales/id.yaml
+    ```
+
+    Run the translation checker to verify all keys exist in all files:
+
+    ```bash
+    make check-translations
+    ```
+  </Step>
+</Steps>
+
+## Adding translations
+
+<Warning>
+  Translations must be added to **all** locale files simultaneously. Adding a key only to `en.yaml` and forgetting the other six files causes silent failures at runtime — the bot will silently return an empty string for users in those locales.
+
+  Always run `make check-translations` before committing any locale changes.
+</Warning>
+
+Use double quotes in YAML for strings that contain escape sequences (`\n`, `\t`). Single quotes preserve them literally:
+
+```yaml
+# Correct — \n becomes a real newline
+your_module_success: "Done! Changes saved.\nThe setting is now active."
+
+# Wrong for newlines — \n is literal
+your_module_success: 'Done! Changes saved.\nThe setting is now active.'
+```
+
+Locale strings use Markdown formatting. The bot converts them to HTML before sending:
+
+```go
+text, _ := tr.GetString("your_module_key")
+htmlText := tgmd2html.MD2HTMLV2(text)
+```
+
+## Running tests
+
+```bash
+# Run all tests with race detection and coverage report
+make test
+
+# Run a specific test by name
+go test -v -run TestFunctionName ./alita/db
+
+# Run tests matching a pattern
+go test -v -run "^TestXxx$" ./alita/db
+
+# Run all tests in a package with a custom timeout
+go test -v -count=1 -timeout 10m ./alita/db
+```
+
+Test files use the `_test.go` suffix and live in the same package as the source. Follow the naming convention:
+- Test functions: `TestXxx` (e.g., `TestGetUser`)
+- Helper functions: camelCase (e.g., `setupTestDB`)
+
+Database tests use shared fixtures in `alita/db/testmain_test.go`. Race detection is enabled by default in the test suite.
+
+## Pull request requirements
+
+Every PR must meet these requirements before it will be reviewed:
+
+| Requirement | How to verify |
+|-------------|--------------|
+| All tests pass | `make test` |
+| No lint errors | `make lint` |
+| Code is formatted | `gofmt -l .` outputs nothing |
+| Translations added to all locales | `make check-translations` |
+| Related issues linked | `Closes #issue` in PR description |
+| No secrets or `.env` committed | Pre-commit hook `detect-private-key` |
+
+## Getting help
+
+If you have questions about the codebase or need guidance on a contribution:
+
+- **Support group**: [t.me/DivideSupport](https://t.me/DivideSupport) — the fastest way to get answers from the maintainer and community
+- **GitHub Issues**: [github.com/divkix/Alita_Robot/issues](https://github.com/divkix/Alita_Robot/issues) — for bug reports and feature discussions
+- **Architecture guide**: The [architecture overview](/development/architecture) documents the module system, database patterns, caching rules, and other design decisions in detail

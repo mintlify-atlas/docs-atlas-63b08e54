@@ -1,0 +1,178 @@
+---
+title: "Welcome and goodbye messages in Alita Robot"
+description: "Greet new members with customizable welcome messages, send farewell messages, and clean up Telegram service notifications automatically."
+---
+
+Alita Robot's greetings system fires automatically when members join or leave your group. Welcome and goodbye messages support rich text, media attachments, inline buttons, and dynamic placeholder variables that are replaced with live data for each user. Clean-up options keep the chat tidy by removing old greetings and Telegram service messages.
+
+<Note>
+  Welcome and goodbye messages support both **HTML** and **Markdown** formatting. Use bold, italic, code blocks, links, and inline button syntax just like in notes and filters.
+</Note>
+
+## Welcome messages
+
+When a user joins the group, Alita sends the configured welcome message. If no custom message is set, a default greeting is used.
+
+<AccordionGroup>
+  <Accordion title="/setwelcome — Set a custom welcome message">
+    Set the message sent to new members. Reply to a media message to include a photo, video, or document as part of the greeting.
+
+    ```bash
+    /setwelcome Welcome to {chatname}, {mention}! 🎉
+    /setwelcome
+    ```
+
+    When used as a reply to a media message, the bot uses that media with the command text as the caption.
+  </Accordion>
+
+  <Accordion title="/welcome — View or toggle welcome messages">
+    Show the current welcome settings and a preview of the welcome message. Pass `on` or `off` to enable or disable welcome messages entirely.
+
+    ```bash
+    /welcome
+    /welcome on
+    /welcome off
+    /welcome noformat
+    ```
+
+    The `noformat` option shows the raw markup without rendering.
+  </Accordion>
+
+  <Accordion title="/resetwelcome — Restore the default welcome">
+    Remove the custom welcome message and fall back to the bot's built-in default.
+
+    ```bash
+    /resetwelcome
+    ```
+  </Accordion>
+
+  <Accordion title="/cleanwelcome — Auto-delete old welcome messages">
+    When enabled, the previous welcome message is deleted each time a new member joins, keeping the chat uncluttered.
+
+    ```bash
+    /cleanwelcome on
+    /cleanwelcome off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Goodbye messages
+
+When a member leaves or is removed from the group, Alita sends the configured goodbye message.
+
+<AccordionGroup>
+  <Accordion title="/setgoodbye — Set a custom goodbye message">
+    Set the message sent when members leave. Supports the same variables and media as welcome messages.
+
+    ```bash
+    /setgoodbye Goodbye, {first}. We'll miss you!
+    ```
+  </Accordion>
+
+  <Accordion title="/goodbye — View or toggle goodbye messages">
+    Show the current goodbye settings and preview. Pass `on` or `off` to enable or disable.
+
+    ```bash
+    /goodbye
+    /goodbye on
+    /goodbye off
+    /goodbye noformat
+    ```
+  </Accordion>
+
+  <Accordion title="/resetgoodbye — Restore the default goodbye">
+    Remove the custom goodbye message and return to the default.
+
+    ```bash
+    /resetgoodbye
+    ```
+  </Accordion>
+
+  <Accordion title="/cleangoodbye — Auto-delete old goodbye messages">
+    Automatically remove the previous goodbye message when a new member leaves.
+
+    ```bash
+    /cleangoodbye on
+    /cleangoodbye off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Placeholder variables
+
+Use the following variables anywhere in your welcome or goodbye message text. The bot replaces them with live values for each event.
+
+| Variable | Replaced with |
+|---|---|
+| `{first}` | User's first name |
+| `{last}` | User's last name (empty string if not set) |
+| `{fullname}` | First name + last name combined |
+| `{username}` | `@username` or a mention link if no username |
+| `{mention}` | Clickable HTML mention link |
+| `{count}` | Current member count of the group |
+| `{chatname}` | Group title |
+| `{id}` | User's Telegram ID |
+
+### Example welcome message
+
+```
+Welcome to {chatname}, {mention}! 🎉
+
+You are member number {count}.
+Please read the rules before chatting.
+```
+
+The bot sends this as: `Welcome to My Group, @alice! 🎉\nYou are member number 1042.\nPlease read the rules before chatting.`
+
+<Tip>
+  Combine `{mention}` with `{chatname}` for a personal touch. Use `{count}` to make each new member feel like part of a milestone.
+</Tip>
+
+## Clean service messages
+
+Telegram generates service messages (e.g. "Alice joined the group", "Bob left the group") automatically. The `/cleanservice` command removes these automatically so the chat feels cleaner.
+
+<AccordionGroup>
+  <Accordion title="/cleanservice — Auto-delete join/leave service messages">
+    Toggle automatic deletion of Telegram service messages when members join or leave.
+
+    ```bash
+    /cleanservice on
+    /cleanservice off
+    ```
+
+    Alias: the command is registered as `/cleanservice` in the bot.
+  </Accordion>
+</AccordionGroup>
+
+## CAPTCHA integration
+
+When the [CAPTCHA feature](/features/anti-spam#captcha-verification) is enabled, new members are silently muted on join and must pass a math or text challenge before they can speak. If they pass, Alita unmutes them and sends the configured welcome message. If they fail or time out, the bot applies the configured failure action (kick, ban, or mute).
+
+## Join request management
+
+For groups with approval-required join links, Alita can present inline Approve / Decline / Ban buttons to admins when a join request arrives.
+
+<AccordionGroup>
+  <Accordion title="/autoapprove — Auto-approve join requests">
+    When enabled, all join requests are automatically approved without admin intervention.
+
+    ```bash
+    /autoapprove on
+    /autoapprove off
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Media support
+
+Welcome and goodbye messages can contain any Telegram media type:
+
+- **Photos** — Reply to a photo and set the caption with `/setwelcome`
+- **Videos** — Reply to a video clip
+- **Documents** — Reply to a file
+- **Audio / Voice** — Reply to audio messages
+- **Stickers** — Reply to a sticker
+- **Video notes** — Reply to a round video message
+
+When the greeting has media, the message text becomes the caption. Inline keyboard buttons defined with the standard button syntax work in greeting messages the same way they work in notes and filters.

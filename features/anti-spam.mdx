@@ -1,0 +1,261 @@
+---
+title: "Anti-spam flood control and blacklists in Alita Robot"
+description: "Protect your Telegram group from message floods, banned words, bot raids, and anonymous channels using Alita Robot's layered anti-spam toolkit."
+---
+
+Alita Robot includes several independent anti-spam layers that work together: flood detection reacts to rapid-fire messages, blacklists block specific words and phrases, CAPTCHA screens new members before they can speak, and locks prevent entire message categories from being posted. Each layer is configurable per group.
+
+<Warning>
+  All anti-spam enforcement actions (restrict, ban, kick) require the bot to be an administrator with **Restrict Members** permission. Without it, the bot will detect violations but cannot act on them.
+</Warning>
+
+## Anti-flood protection
+
+The flood protection module counts messages per user in a rolling window. When a user sends more messages than the configured limit within that window, the bot applies the configured action and optionally deletes the flood messages.
+
+### Setting up flood protection
+
+<Steps>
+  <Step title="Set the flood limit">
+    Choose how many consecutive messages trigger the flood action. The valid range is 3–100; use `0` or `off` to disable.
+
+    ```bash
+    /setflood 10
+    /setflood off
+    ```
+  </Step>
+  <Step title="Choose the enforcement action">
+    Pick what happens when the limit is exceeded: `ban`, `kick`, or `mute`. Default is `mute`.
+
+    ```bash
+    /setfloodmode mute
+    /setfloodmode kick
+    /setfloodmode ban
+    ```
+  </Step>
+  <Step title="(Optional) Enable flood message deletion">
+    Toggle whether the bot deletes the messages that triggered the flood, not just the triggering one.
+
+    ```bash
+    /delflood on
+    /delflood off
+    ```
+  </Step>
+  <Step title="Check current settings">
+    View the active flood limit and action at any time.
+
+    ```bash
+    /flood
+    ```
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="/setflood — Configure the message limit">
+    Set the maximum number of consecutive messages a user can send before the flood action fires.
+
+    ```bash
+    /setflood 15
+    /setflood off
+    ```
+
+    Admins are always exempt from flood detection regardless of the limit.
+  </Accordion>
+
+  <Accordion title="/setfloodmode — Set the flood action">
+    Choose the action taken when the limit is exceeded.
+
+    ```bash
+    /setfloodmode ban
+    /setfloodmode kick
+    /setfloodmode mute
+    ```
+
+    When the action is `mute`, an inline **Unmute** button appears on the notification for quick admin reversal. When it is `ban`, an **Unban** button is shown.
+  </Accordion>
+
+  <Accordion title="/delflood — Toggle flood message deletion">
+    When enabled, all messages that contributed to the flood are deleted. When disabled, only the final triggering message is removed.
+
+    ```bash
+    /delflood on
+    /delflood off
+    ```
+  </Accordion>
+
+  <Accordion title="/flood — View flood settings">
+    Show the current flood limit and the configured action.
+
+    ```bash
+    /flood
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Blacklists
+
+The blacklist module watches every incoming message for a list of forbidden words or phrases. When a match is found, the message is deleted and the configured action is applied.
+
+<AccordionGroup>
+  <Accordion title="/blacklist — Add words to the blacklist">
+    Add one or more space-separated words or phrases to the blacklist. Words are case-insensitive and matched anywhere in a message.
+
+    ```bash
+    /blacklist spam
+    /blacklist badword anotherbadword
+    ```
+
+    Aliases: `/addblacklist`
+
+    Keywords are limited to 100 characters each, and are matched using fast Aho-Corasick multi-pattern search.
+  </Accordion>
+
+  <Accordion title="/blacklists — List all blacklisted words">
+    Show every word currently on the blacklist for the chat.
+
+    ```bash
+    /blacklists
+    ```
+  </Accordion>
+
+  <Accordion title="/rmblacklist — Remove a word from the blacklist">
+    Remove one or more words from the blacklist.
+
+    ```bash
+    /rmblacklist spam
+    ```
+  </Accordion>
+
+  <Accordion title="/blaction — Set the blacklist enforcement action">
+    Choose what happens when a blacklisted word is detected. Available actions: `none` (delete only), `warn`, `mute`, `kick`, `ban`.
+
+    ```bash
+    /blaction warn
+    /blaction mute
+    /blaction ban
+    /blaction none
+    ```
+
+    Aliases: `/blacklistaction`
+  </Accordion>
+
+  <Accordion title="/rmallbl — Remove all blacklisted words">
+    Owner-only. Delete the entire blacklist for the chat. Requires confirmation via inline keyboard.
+
+    ```bash
+    /rmallbl
+    ```
+
+    Aliases: `/remallbl`
+  </Accordion>
+</AccordionGroup>
+
+## CAPTCHA verification
+
+When CAPTCHA is enabled, every new member is immediately muted on joining and receives an image challenge they must solve before they can post. The bot supports two challenge modes: **math** (arithmetic problems displayed as an image) and **text** (random alphanumeric strings displayed as an image).
+
+<AccordionGroup>
+  <Accordion title="/captcha — Enable or disable CAPTCHA">
+    Toggle CAPTCHA verification for new members. Without arguments, shows the current settings.
+
+    ```bash
+    /captcha on
+    /captcha off
+    /captcha
+    ```
+  </Accordion>
+
+  <Accordion title="/captchamode — Set the challenge type">
+    Choose between `math` and `text` challenge modes.
+
+    ```bash
+    /captchamode math
+    /captchamode text
+    ```
+
+    **Math mode** shows a random arithmetic expression (addition, subtraction, or multiplication) rendered as a captcha image with four multiple-choice answer buttons.
+
+    **Text mode** shows a random alphanumeric string as an image with four choices.
+  </Accordion>
+
+  <Accordion title="/captchatime — Set the verification timeout">
+    Set how many minutes a new member has to complete the challenge (1–10 minutes). If they do not respond in time, the failure action is applied.
+
+    ```bash
+    /captchatime 3
+    ```
+  </Accordion>
+
+  <Accordion title="/captchaaction — Set the failure action">
+    Choose what happens when a user fails or times out: `kick`, `ban`, or `mute`.
+
+    ```bash
+    /captchaaction kick
+    /captchaaction ban
+    /captchaaction mute
+    ```
+  </Accordion>
+
+  <Accordion title="/captchamaxattempts — Set maximum wrong answers">
+    Configure how many wrong answers a user can submit before the failure action is triggered (1–10 attempts).
+
+    ```bash
+    /captchamaxattempts 3
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### CAPTCHA flow
+
+1. A new member joins — the bot immediately mutes them.
+2. An image challenge is sent to the group with four inline answer buttons.
+3. The user selects the correct answer:
+   - **Correct** — bot unmutes the user, deletes the challenge, sends the welcome message.
+   - **Wrong** — remaining attempts are shown. After max attempts, the failure action fires.
+   - **Timeout** — the failure action fires when the timer expires.
+4. Admins can view a member's pending messages with `/captchapending` and clear them with `/captchaclear`.
+
+<Note>
+  The CAPTCHA module uses cryptographically secure random number generation for challenge values and shuffles answer options using Fisher-Yates with `crypto/rand`.
+</Note>
+
+## Locks
+
+The locks module blocks entire categories of messages from being posted in the group. When a locked message type is detected, the bot silently deletes it. Admins and the bot itself are exempt.
+
+<AccordionGroup>
+  <Accordion title="/lock — Lock a message type">
+    Prevent a specific message type from being sent in the group.
+
+    ```bash
+    /lock sticker
+    /lock forward
+    /lock url
+    ```
+
+    **Available lock types (permission-based):** `sticker`, `audio`, `voice`, `document`, `video`, `videonote`, `contact`, `photo`, `gif`, `url`, `bots`, `forward`, `game`, `location`, `rtl`, `anonchannel`
+
+    **Available restriction types:** `messages`, `media`, `other`, `previews`, `all`, `comments`
+  </Accordion>
+
+  <Accordion title="/unlock — Unlock a message type">
+    Re-allow a previously locked message type.
+
+    ```bash
+    /unlock sticker
+    /unlock forward
+    ```
+  </Accordion>
+
+  <Accordion title="/locks — List current lock settings">
+    Display all active locks for the chat.
+
+    ```bash
+    /locks
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Built-in rate limiting
+
+Alita includes a transparent rate-limiting layer (the antispam module) that silently drops requests from any user who sends more than 18 messages per second in a single chat. This operates independently of the flood module and requires no configuration — it runs automatically for every group.
